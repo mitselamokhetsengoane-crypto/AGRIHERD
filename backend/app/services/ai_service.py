@@ -1,27 +1,36 @@
-import os
+import logging
+from pathlib import Path
+
 from ultralytics import YOLO
 
-# Calculate absolute path to the model
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-MODEL_PATH = os.path.join(BASE_DIR, "ai-model", "weights", "best.pt")
+logger = logging.getLogger(__name__)
+MODEL_PATH = Path(__file__).resolve().parents[3] / "ai-model" / "weights" / "best.pt"
 
 try:
-    model = YOLO(MODEL_PATH)
-    print(f"AI Model loaded successfully from {MODEL_PATH}")
-except Exception as e:
-    print(f"Error loading AI model: {e}")
+    model = YOLO(str(MODEL_PATH))
+    logger.info("AI model loaded from %s", MODEL_PATH)
+except Exception:
+    logger.exception("Failed to load AI model from %s", MODEL_PATH)
     model = None
 
 
 def predict_disease(image_path: str):
-    """
-    Run YOLOv8 inference on an image.
-    Returns a dict with a 'detections' list.
-    """
-    if model is None:
-        return {"error": "AI model is not loaded on the server."}
+    global model
 
-    results = model(image_path)
+    if model is None:
+        try:
+            model = YOLO(str(MODEL_PATH))
+            logger.info("AI model loaded on demand from %s", MODEL_PATH)
+        except Exception:
+            logger.exception("AI model is unavailable at %s", MODEL_PATH)
+            return {"error": "Disease detection model is unavailable on the server."}
+
+    try:
+        results = model(image_path)
+    except Exception as exc:
+        logger.exception("AI model failed to process image")
+        raise RuntimeError("The AI model could not process this image.") from exc
+
     detections = []
 
     for box in results[0].boxes:

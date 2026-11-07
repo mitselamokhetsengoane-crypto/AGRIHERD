@@ -31,7 +31,16 @@ const DiseaseScanner = () => {
       const result = await aiService.scanImage(image);
       navigate('/disease-scanner/results', { state: { result, preview } });
     } catch (err) {
-      setError('Failed to scan image. Ensure the backend and AI model are running.');
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (err.response?.status === 401) {
+        setError('Your session has expired. Please log in again before scanning.');
+      } else if (err.response) {
+        setError(`The scan failed (HTTP ${err.response.status}). Please try again.`);
+      } else {
+        setError('Could not reach the scan service. Check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -63,7 +72,7 @@ const DiseaseScanner = () => {
         
         <input 
           type="file" 
-          accept="image/*" 
+          accept="image/jpeg,image/png,image/webp"
           className="hidden" 
           ref={fileInputRef} 
           onChange={handleImageChange} 
