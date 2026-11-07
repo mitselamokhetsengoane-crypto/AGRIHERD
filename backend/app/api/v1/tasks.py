@@ -1,0 +1,84 @@
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from typing import Optional
+from app.core.permissions import get_current_user
+from app.database.connection import supabase
+
+router = APIRouter()
+
+class TaskCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: Optional[str] = None
+    date: Optional[str] = None
+    time: Optional[str] = None
+    assigned_person: Optional[str] = None
+
+@router.get("/")
+def get_tasks(current_user: dict = Depends(get_current_user)):
+    response = supabase.table("tasks").select("*").eq("user_id", current_user["sub"]).execute()
+    return response.data
+
+@router.get("/upcoming")
+def get_upcoming_tasks(current_user: dict = Depends(get_current_user)):
+    response = (
+        supabase.table("tasks")
+        .select("*")
+        .eq("user_id", current_user["sub"])
+        .gte("date", date.today().isoformat())
+        .neq("status", "Completed")
+        .order("date")
+        .execute()
+    )
+    return response.data
+
+@router.get("/{task_id}")
+def get_task(task_id: str, current_user: dict = Depends(get_current_user)):
+    response = (
+        supabase.table("tasks")
+        .select("*")
+        .eq("id", task_id)
+        .eq("user_id", current_user["sub"])
+        .execute()
+    )
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return response.data[0]
+
+@router.post("/")
+def create_task(task: TaskCreate, current_user: dict = Depends(get_current_user)):
+    task_data = task.dict(exclude_unset=True)
+    task_data["name"] = task_data["name"].strip()
+    if not task_data["name"]:
+        raise HTTPException(status_code=422, detail="Task name cannot be empty")
+    task_data["user_id"] = current_user["sub"]
+    task_data["status"] = "Pending"
+    response = supabase.table("tasks").insert(task_data).execute()
+    return response.data[0]
+
+@router.patch("/{task_id}/complete")
+def complete_task(task_id: str, current_user: dict = Depends(get_current_user)):
+    response = (
+        supabase.table("tasks")
+        .update({"status": "Completed"})
+        .eq("id", task_id)
+        .eq("user_id", current_user["sub"])
+        .execute()
+    )
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return response.data[0]
+
+@router.delete("/{task_id}")
+def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
+    response = (
+        supabase.table("tasks")
+        .delete()
+        .eq("id", task_id)
+        .eq("user_id", current_user["sub"])
+        .execute()
+    )
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"message": "Task deleted"}

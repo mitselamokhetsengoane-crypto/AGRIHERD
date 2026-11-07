@@ -1,0 +1,53 @@
+# ============================================================
+# AGRIHERD DOCKER COMPOSE
+# Runs frontend, backend, and blockchain node together
+# ============================================================
+
+version: '3.8'
+
+services:
+  # Frontend: React app served by Nginx
+  frontend:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api/v1
+    networks:
+      - agriherd-network
+
+  # Backend: FastAPI + AI model
+  backend:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../backend/.env
+    depends_on:
+      - blockchain
+    volumes:
+      - ../ai-model/weights:/ai-model/weights
+    networks:
+      - agriherd-network
+
+  # Blockchain: Local Hardhat node
+  blockchain:
+    image: node:20-alpine
+    working_dir: /blockchain
+    volumes:
+      - ../blockchain:/blockchain
+    command: sh -c "npm install && npx hardhat node"
+    ports:
+      - "8545:8545"
+    networks:
+      - agriherd-network
+
+networks:
+  agriherd-network:
+    driver: bridge
