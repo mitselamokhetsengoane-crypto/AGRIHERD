@@ -8,7 +8,11 @@ app = FastAPI(title="AgriHerd API", version="1.0.0")
 # CORS configuration to allow React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"], # React dev ports
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://localhost:5173",
+        "https://agriherd-1.onrender.com"  # <-- ADDED YOUR LIVE FRONTEND URL
+    ], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
