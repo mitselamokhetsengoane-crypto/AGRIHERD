@@ -78,22 +78,22 @@ def predict_image(image_path: str, save_annotated: bool = False, as_json: bool =
 
     # Pretty print to console
     print("\n" + "=" * 60)
-    print(f"🌿 AgriHerd AI Disease Detection")
+    print("AgriHerd AI Disease Detection")
     print("=" * 60)
     print(f"Image: {image_path}")
     print(f"Detections: {len(detections)}")
     print("-" * 60)
 
     if not detections:
-        print("✅ No diseases detected. The crop appears healthy.")
+        print("No diseases detected. The crop appears healthy.")
     else:
         for i, det in enumerate(detections, 1):
             print(f"\n[{i}] {det['class_name']}")
             print(f"    Confidence: {det['confidence'] * 100:.2f}%")
-            print(f"    Bounding Box: ({det['bbox']['x1']}, {det['bbox']['y1']}) → ({det['bbox']['x2']}, {det['bbox']['y2']})")
+            print(f"    Bounding Box: ({det['bbox']['x1']}, {det['bbox']['y1']}) to ({det['bbox']['x2']}, {det['bbox']['y2']})")
 
     if annotated_path:
-        print(f"\n📸 Annotated image saved: {annotated_path}")
+        print(f"\nAnnotated image saved: {annotated_path}")
 
     print("=" * 60 + "\n")
     return output
@@ -112,5 +112,5 @@ if __name__ == "__main__":
         if args.json:
             print(json.dumps(result, indent=2))
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         sys.exit(1)

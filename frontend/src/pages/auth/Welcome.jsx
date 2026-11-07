@@ -8,15 +8,9 @@ const Welcome = () => {
       <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpeg" alt="AgriHerd" className="h-10 w-10 object-contain" />
+            <img src="/logo.jpeg" alt="AgriHerd" className="h-10 w-10 rounded-full object-cover" />
             <span className="text-xl font-bold text-[#2E7D32]">AgriHerd</span>
           </div>
-          <Link
-            to="/login"
-            className="bg-[#2E7D32] hover:bg-[#1B5E20] text-white px-6 py-2.5 rounded-lg font-medium transition"
-          >
-            Access Services
-          </Link>
         </div>
       </nav>
 
@@ -124,9 +118,6 @@ const Welcome = () => {
               'Role-based access — farmers, workers, and admins',
             ].map((b, i) => (
               <div key={i} className="flex items-start gap-3 p-4 bg-[#F5F9F5] rounded-xl">
-                <div className="w-6 h-6 rounded-full bg-[#2E7D32] flex-shrink-0 flex items-center justify-center text-white text-sm mt-0.5">
-                  ✓
-                </div>
                 <p className="text-[#1B1B1B] font-medium">{b}</p>
               </div>
             ))}

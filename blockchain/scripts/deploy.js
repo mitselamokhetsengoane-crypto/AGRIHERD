@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 
 async function main() {
-  console.log("🚀 Deploying AgriHerdRecords contract...");
+  console.log("Deploying AgriHerdRecords contract...");
 
   const AgriHerdRecords = await hre.ethers.getContractFactory("AgriHerdRecords");
   const contract = await AgriHerdRecords.deploy();
@@ -12,14 +12,14 @@ async function main() {
   const network = hre.network.name;
   const blockNumber = await hre.ethers.provider.getBlockNumber();
 
-  console.log("✅ AgriHerdRecords deployed successfully!");
+  console.log("AgriHerdRecords deployed successfully!");
   console.log("------------------------------------------");
   console.log(`Network:          ${network}`);
   console.log(`Contract Address: ${contractAddress}`);
   console.log(`Deployer:         ${deployer.address}`);
   console.log(`Block Number:     ${blockNumber}`);
   console.log("------------------------------------------");
-  console.log("\n📋 Add this to your backend .env file:");
+  console.log("\nAdd this to your backend .env file:");
   console.log(`CONTRACT_ADDRESS=${contractAddress}`);
   console.log(`CONTRACT_NETWORK=${network}`);
 }
@@ -27,6 +27,6 @@ async function main() {
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error("❌ Deployment failed:", error);
+    console.error("Deployment failed:", error);
     process.exit(1);
   });

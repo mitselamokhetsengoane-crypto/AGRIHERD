@@ -8,7 +8,7 @@ const AuthLayout = () => {
           <img
             src="/logo.jpeg"
             alt="AgriHerd"
-            className="w-36 h-auto mx-auto mb-4"
+            className="h-36 w-36 rounded-full object-cover mx-auto mb-4"
           />
           <p className="text-sm text-subtext mt-1">Manage Your Farm with Ease</p>
         </div>

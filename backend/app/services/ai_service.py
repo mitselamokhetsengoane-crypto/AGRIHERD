@@ -7,9 +7,9 @@ MODEL_PATH = os.path.join(BASE_DIR, "ai-model", "weights", "best.pt")
 
 try:
     model = YOLO(MODEL_PATH)
-    print(f"✅ AI Model loaded successfully from {MODEL_PATH}")
+    print(f"AI Model loaded successfully from {MODEL_PATH}")
 except Exception as e:
-    print(f"❌ Error loading AI model: {e}")
+    print(f"Error loading AI model: {e}")
     model = None
 
 

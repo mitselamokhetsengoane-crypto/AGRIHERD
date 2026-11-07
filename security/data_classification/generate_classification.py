@@ -98,7 +98,7 @@ def create_classification_matrix():
         ws.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = width
 
     wb.save("classification_matrix.xlsx")
-    print("✅ Saved: classification_matrix.xlsx")
+    print("Saved: classification_matrix.xlsx")
 
 if __name__ == "__main__":
     create_classification_matrix()

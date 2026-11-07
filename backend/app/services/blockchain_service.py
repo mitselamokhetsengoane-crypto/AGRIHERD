@@ -55,9 +55,9 @@ class BlockchainService:
                         artifact = json.load(f)
                         return artifact.get("abi", [])
                 except Exception as e:
-                    print(f"⚠️ Could not load ABI from {path}: {e}")
+                    print(f"Could not load ABI from {path}: {e}")
         
-        print("⚠️ Contract ABI not found. Run 'npm run compile' in the blockchain/ folder.")
+        print("Contract ABI not found. Run 'npm run compile' in the blockchain/ folder.")
         return None
 
     def get_network_status(self):

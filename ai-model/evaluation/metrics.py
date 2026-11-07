@@ -48,7 +48,7 @@ def evaluate_model(data_yaml_path: str = None, split: str = "test"):
         )
 
     model = load_model()
-    print(f"🔍 Running evaluation on '{split}' split...")
+    print(f"Running evaluation on '{split}' split...")
 
     metrics = model.val(data=data_yaml_path, split=split)
 
@@ -83,7 +83,7 @@ def evaluate_model(data_yaml_path: str = None, split: str = "test"):
 
     # Print summary
     print("\n" + "=" * 60)
-    print("📊 Evaluation Results")
+    print("Evaluation Results")
     print("=" * 60)
     print(f"Precision:  {overall['precision']:.4f} ({overall['precision']*100:.2f}%)")
     print(f"Recall:     {overall['recall']:.4f} ({overall['recall']*100:.2f}%)")
@@ -102,4 +102,4 @@ if __name__ == "__main__":
     output_path = os.path.join(os.path.dirname(__file__), "metrics_results.json")
     with open(output_path, "w") as f:
         json.dump(result, f, indent=2)
-    print(f"💾 Results saved to {output_path}")
+    print(f"Results saved to {output_path}")

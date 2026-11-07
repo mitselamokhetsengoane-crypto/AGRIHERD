@@ -29,7 +29,7 @@ const AdminLayout = () => {
       {/* Admin Sidebar (Fixed) */}
       <aside className="sidebar-fixed hidden md:flex flex-col bg-gray-900 text-white">
         <div className="h-16 flex items-center px-4 border-b border-gray-800">
-          <img src="/logo.jpeg" alt="AgriHerd" className="h-12 w-10 object-contain" />
+          <img src="/logo.jpeg" alt="AgriHerd" className="h-12 w-10 rounded-full object-cover" />
           <h2 className="text-xl font-bold text-secondary">AgriHerd Admin</h2>
         </div>
         <nav className="flex-1 p-4 space-y-2">
@@ -84,7 +84,7 @@ const AdminLayout = () => {
           <button type="button" aria-label="Close admin navigation" className="fixed inset-0 bg-black/50" onClick={() => setIsSidebarOpen(false)} />
           <aside className="relative z-50 flex h-full w-64 flex-col bg-gray-900 text-white">
             <div className="flex h-16 items-center gap-2 border-b border-gray-800 px-4">
-              <img src="/logo.jpeg" alt="AgriHerd" className="h-12 w-10 object-contain" />
+              <img src="/logo.jpeg" alt="AgriHerd" className="h-12 w-10 rounded-full object-cover" />
               <h2 className="text-xl font-bold text-secondary">AgriHerd Admin</h2>
             </div>
             <nav className="flex-1 space-y-2 overflow-y-auto p-4">

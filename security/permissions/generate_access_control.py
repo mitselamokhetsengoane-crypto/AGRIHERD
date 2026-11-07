@@ -155,7 +155,7 @@ def create_access_control_matrix():
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
     wb.save("access_control_matrix.xlsx")
-    print("✅ Saved: access_control_matrix.xlsx")
+    print("Saved: access_control_matrix.xlsx")
 
 if __name__ == "__main__":
     create_access_control_matrix()

@@ -11,7 +11,7 @@ class AuditService:
             }).execute()
         except Exception as e:
             # Audit logging should not crash the main application flow
-            print(f"⚠️ Failed to write audit log: {e}")
+            print(f"Failed to write audit log: {e}")
 
     @staticmethod
     def get_logs(limit: int = 100):

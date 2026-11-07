@@ -7,9 +7,6 @@ const OrderConfirmation = () => {
 
   return (
     <section className="mx-auto max-w-xl rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-xl font-bold text-primary" aria-hidden="true">
-        ✓
-      </div>
       <h1 className="text-2xl font-bold text-maintext">Order placed</h1>
       <p className="mt-2 text-subtext">Your order was submitted successfully. You can review its status in your orders.</p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">

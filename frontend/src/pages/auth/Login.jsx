@@ -39,7 +39,7 @@ const Login = () => {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/logo.jpeg" alt="AgriHerd" className="w-16 h-16 object-contain mx-auto mb-4" />
+          <img src="/logo.jpeg" alt="AgriHerd" className="w-16 h-16 rounded-full object-cover mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-[#1B1B1B]">Welcome Back</h1>
           <p className="text-[#6B7280] mt-2">Sign in to continue managing your farm</p>
         </div>

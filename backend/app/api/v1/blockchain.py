@@ -56,7 +56,7 @@ def log_record_to_chain(
             "block_number": result["block_number"]
         }).execute()
     except Exception as e:
-        print(f"⚠️ Failed to save blockchain reference: {e}")
+        print(f"Failed to save blockchain reference: {e}")
 
     AuditService.log(
         current_user["sub"],

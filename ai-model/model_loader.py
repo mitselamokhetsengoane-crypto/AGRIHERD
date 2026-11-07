@@ -32,13 +32,13 @@ def load_model():
 
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(
-            f"❌ AI model not found at {MODEL_PATH}\n"
+            f"AI model not found at {MODEL_PATH}\n"
             f"   Please place your trained 'best.pt' file in ai-model/weights/"
         )
 
-    print(f"🔍 Loading AI model from {MODEL_PATH}...")
+    print(f"Loading AI model from {MODEL_PATH}...")
     _model_instance = YOLO(MODEL_PATH)
-    print(f"✅ Model loaded successfully!")
+    print("Model loaded successfully!")
     print(f"   Classes: {len(_model_instance.names)}")
     print(f"   Class names: {list(_model_instance.names.values())[:5]}... (showing first 5)")
 

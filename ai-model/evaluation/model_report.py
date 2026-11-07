@@ -21,7 +21,7 @@ from model_loader import get_model_info
 def generate_full_report():
     """Generate a complete model evaluation report."""
     
-    print("📋 Generating AgriHerd AI Model Report...")
+    print("Generating AgriHerd AI Model Report...")
     print("=" * 60)
 
     # Model metadata
@@ -86,7 +86,7 @@ def generate_full_report():
 
     # Print formatted report
     print("\n" + "=" * 60)
-    print("📋 FINAL AGRIHERD AI REPORT")
+    print("FINAL AGRIHERD AI REPORT")
     print("=" * 60)
     print(f"Model:          {model_info['model_name']}")
     print(f"Classes:        {model_info['num_classes']}")
@@ -102,8 +102,8 @@ def generate_full_report():
     with open(output_path, "w") as f:
         json.dump(report, f, indent=2)
     
-    print(f"💾 Full report saved to: {output_path}")
-    print(f"📸 Also include screenshots from: runs/detect/val*/")
+    print(f"Full report saved to: {output_path}")
+    print(f"Also include screenshots from: runs/detect/val*/")
     print(f"    - confusion_matrix.png")
     print(f"    - results.csv")
     print(f"    - F1_curve.png")

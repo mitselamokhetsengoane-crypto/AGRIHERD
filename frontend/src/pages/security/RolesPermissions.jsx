@@ -11,19 +11,19 @@ const RolesPermissions = () => {
           <div className="border rounded p-4">
             <h4 className="font-bold text-primary mb-2">Farmer</h4>
             <ul className="text-sm text-gray-600 space-y-1">
-              <li>✅ Read: Own Farm Data</li>
-              <li>✅ Write: Own Farm Data</li>
-              <li>❌ Read: Other Farms</li>
-              <li>❌ Write: Security Settings</li>
+              <li><span className="font-medium text-green-700">Allowed</span> - Read: Own Farm Data</li>
+              <li><span className="font-medium text-green-700">Allowed</span> - Write: Own Farm Data</li>
+              <li><span className="font-medium text-gray-500">Restricted</span> - Read: Other Farms</li>
+              <li><span className="font-medium text-gray-500">Restricted</span> - Write: Security Settings</li>
             </ul>
           </div>
           <div className="border rounded p-4">
             <h4 className="font-bold text-secondary mb-2">Farm Worker</h4>
             <ul className="text-sm text-gray-600 space-y-1">
-              <li>✅ Read: Assigned Tasks</li>
-              <li>✅ Write: Task Status</li>
-              <li>❌ Read: Financial Data</li>
-              <li>❌ Write: Farm Records</li>
+              <li><span className="font-medium text-green-700">Allowed</span> - Read: Assigned Tasks</li>
+              <li><span className="font-medium text-green-700">Allowed</span> - Write: Task Status</li>
+              <li><span className="font-medium text-gray-500">Restricted</span> - Read: Financial Data</li>
+              <li><span className="font-medium text-gray-500">Restricted</span> - Write: Farm Records</li>
             </ul>
           </div>
         </div>

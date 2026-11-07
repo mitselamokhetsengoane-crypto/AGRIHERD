@@ -15,7 +15,7 @@ const Sidebar = ({ closeMobile }) => {
   return (
     <aside className="w-64 bg-white shadow-md flex flex-col h-full">
       <div className="h-16 flex items-center justify-center gap-2 border-b border-gray-100">
-        <img src="/logo.jpeg" alt="AgriHerd" className="h-12 w-10 object-contain" />
+        <img src="/logo.jpeg" alt="AgriHerd" className="h-12 w-10 rounded-full object-cover" />
         <h2 className="text-2xl font-bold text-primary tracking-wide">AgriHerd</h2>
       </div>
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">

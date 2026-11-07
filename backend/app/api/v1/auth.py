@@ -38,6 +38,7 @@ def register(user: UserRegister):
         supabase.table("profiles").insert({
             "id": user_id,
             "full_name": user.full_name,
+            "email": user.email,
             "phone": user.phone,
             "farm_name": user.farm_name,
             "role": "farmer"

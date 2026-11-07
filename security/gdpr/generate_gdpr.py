@@ -198,7 +198,7 @@ def create_gdpr_assessment():
     ws2["B9"].font = Font(bold=True, size=14, color="2E7D32")
 
     wb.save("compliance_assessment.xlsx")
-    print("✅ Saved: compliance_assessment.xlsx")
+    print("Saved: compliance_assessment.xlsx")
     print(f"   Compliance Score: {score:.1f}%")
 
 if __name__ == "__main__":
