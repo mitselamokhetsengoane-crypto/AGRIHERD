@@ -5,7 +5,6 @@
 # ====================
 # 1. SECRETS & ENV
 # ====================
-# Never commit environment variables (database passwords, API keys)
 .env
 .env.*
 !.env.example
@@ -47,10 +46,9 @@ ai-model/venv/
 *.egg
 
 # ====================
-# 4. AI MODEL & DATA
+# 4. AI MODEL DATA (but NOT the .pt file)
 # ====================
-# Do not commit the heavy AI model or datasets (they exceed GitHub's 100MB limit)
-ai-model/weights/*.pt
+# We keep best.pt so Render can use the AI model
 ai-model/datasets/
 ai-model/predictions/
 runs/
@@ -59,7 +57,6 @@ runs/
 # ====================
 # 5. BLOCKCHAIN (Hardhat)
 # ====================
-# Do not commit compiled artifacts or cache
 blockchain/artifacts/
 blockchain/cache/
 blockchain/typechain-types/
@@ -69,7 +66,6 @@ blockchain/coverage.json
 # ====================
 # 6. DATABASE & EXCEL FILES
 # ====================
-# Ignore local database dumps and generated Excel files (they can be regenerated)
 *.sqlite
 *.db
 *.xlsx

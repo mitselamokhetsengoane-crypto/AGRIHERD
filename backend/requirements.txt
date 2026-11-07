@@ -10,3 +10,4 @@ ultralytics
 pillow
 web3
 eth-account
+email-validator
