@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from app.core.permissions import get_current_user
-from app.main import app
+from app.main import api, app
 
 
 client = TestClient(app)
@@ -14,10 +14,10 @@ client = TestClient(app)
 
 class TestDiseaseScanner(unittest.TestCase):
     def setUp(self):
-        app.dependency_overrides[get_current_user] = lambda: {"sub": "user-id"}
+        api.dependency_overrides[get_current_user] = lambda: {"sub": "user-id"}
 
     def tearDown(self):
-        app.dependency_overrides.pop(get_current_user, None)
+        api.dependency_overrides.pop(get_current_user, None)
 
     @staticmethod
     def make_png():

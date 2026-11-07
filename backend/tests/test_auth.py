@@ -18,7 +18,10 @@ def test_read_main():
 
 class TestAuthLogin(unittest.TestCase):
     def test_register_inserts_email_into_profile(self):
-        with patch("app.api.v1.auth.supabase") as supabase_mock:
+        with (
+            patch("app.api.v1.auth.supabase") as supabase_mock,
+            patch("app.api.v1.auth.create_client") as create_client_mock,
+        ):
             supabase_mock.auth.sign_up.return_value = SimpleNamespace(
                 user=SimpleNamespace(id="user-id")
             )
@@ -39,8 +42,8 @@ class TestAuthLogin(unittest.TestCase):
             "message": "User registered successfully",
             "user_id": "user-id",
         }
-        supabase_mock.table.assert_called_once_with("profiles")
-        supabase_mock.table.return_value.insert.assert_called_once_with({
+        create_client_mock.return_value.table.assert_called_once_with("profiles")
+        create_client_mock.return_value.table.return_value.insert.assert_called_once_with({
             "id": "user-id",
             "full_name": "Test Farmer",
             "email": "farmer@example.com",

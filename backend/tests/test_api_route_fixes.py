@@ -1,0 +1,101 @@
+from types import SimpleNamespace
+import unittest
+from unittest.mock import MagicMock, patch
+
+from fastapi.testclient import TestClient
+
+from app.core.permissions import get_current_user
+from app.main import api, app
+
+
+client = TestClient(app)
+
+
+def mock_table(data):
+    table = MagicMock()
+    table.select.return_value = table
+    table.eq.return_value = table
+    table.gte.return_value = table
+    table.neq.return_value = table
+    table.lte.return_value = table
+    table.order.return_value = table
+    table.limit.return_value = table
+    table.execute.return_value = SimpleNamespace(data=data)
+    return table
+
+
+class TestMissingApiRoutes(unittest.TestCase):
+    def setUp(self):
+        api.dependency_overrides[get_current_user] = lambda: {"sub": "user-id"}
+
+    def tearDown(self):
+        api.dependency_overrides.pop(get_current_user, None)
+
+    def test_dashboard_summary_returns_user_scoped_database_totals(self):
+        tables = {
+            "livestock": mock_table([{"id": "animal-id"}]),
+            "crops": mock_table([]),
+            "tasks": mock_table([{"id": "task-id"}]),
+            "inventory": mock_table([{"quantity": 2, "minimum_stock_level": 5}]),
+            "transactions": mock_table([
+                {"amount": 100, "type": "income"},
+                {"amount": 25, "type": "expense"},
+            ]),
+            "audit_logs": mock_table([
+                {"action": "ADD_ANIMAL", "details": "Added animal", "created_at": "2026-11-07"}
+            ]),
+        }
+        with patch("app.api.v1.dashboard.supabase") as supabase_mock:
+            supabase_mock.table.side_effect = tables.get
+            response = client.get("/api/v1/dashboard/summary")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {
+            "livestock_count": 1,
+            "crop_count": 0,
+            "upcoming_tasks": 1,
+            "low_stock_alerts": 1,
+            "net_balance": 75,
+            "recent_activity": [{"description": "Added animal", "time": "2026-11-07"}],
+        })
+
+    def test_inventory_item_detail_is_scoped_to_current_user(self):
+        table = mock_table([{"id": "item-id", "name": "Feed", "user_id": "user-id"}])
+        with patch("app.api.v1.inventory.supabase") as supabase_mock:
+            supabase_mock.table.return_value = table
+            response = client.get("/api/v1/inventory/item-id")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["name"], "Feed")
+        table.eq.assert_any_call("user_id", "user-id")
+
+    def test_finance_reports_aggregate_transactions_by_month(self):
+        table = mock_table([
+            {"amount": 100, "type": "income", "date": "2026-10-12"},
+            {"amount": 40, "type": "expense", "date": "2026-10-20"},
+            {"amount": 20, "type": "income", "date": "2026-09-04"},
+        ])
+        with patch("app.api.v1.finance.supabase") as supabase_mock:
+            supabase_mock.table.return_value = table
+            response = client.get("/api/v1/finance/reports")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [
+            {"month": "2026-10", "income": 100, "expenses": 40, "balance": 60},
+            {"month": "2026-09", "income": 20, "expenses": 0, "balance": 20},
+        ])
+
+    def test_cors_header_is_returned_for_unhandled_server_errors(self):
+        test_client = TestClient(app, raise_server_exceptions=False)
+        with patch("app.api.v1.dashboard.supabase") as supabase_mock:
+            supabase_mock.table.side_effect = RuntimeError("Database unavailable")
+            response = test_client.get(
+                "/api/v1/dashboard/summary",
+                headers={"Origin": "https://agriherd-1.onrender.com"},
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.headers["access-control-allow-origin"],
+            "https://agriherd-1.onrender.com",
+        )

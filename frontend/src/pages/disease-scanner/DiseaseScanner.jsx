@@ -6,6 +6,7 @@ const DiseaseScanner = () => {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [wakingServer, setWakingServer] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
@@ -25,10 +26,11 @@ const DiseaseScanner = () => {
       return;
     }
     setLoading(true);
+    setWakingServer(false);
     setError('');
     try {
       // This calls the FastAPI backend which runs your YOLOv8 best.pt model
-      const result = await aiService.scanImage(image);
+      const result = await aiService.scanImage(image, () => setWakingServer(true));
       navigate('/disease-scanner/results', { state: { result, preview } });
     } catch (err) {
       const detail = err.response?.data?.detail;
@@ -43,6 +45,7 @@ const DiseaseScanner = () => {
       }
     } finally {
       setLoading(false);
+      setWakingServer(false);
     }
   };
 
@@ -83,7 +86,7 @@ const DiseaseScanner = () => {
           disabled={loading || !image}
           className="w-full bg-primary text-white py-3 rounded-md hover:bg-green-800 transition font-medium disabled:opacity-50"
         >
-          {loading ? 'Scanning Image...' : 'Scan Image'}
+          {loading ? (wakingServer ? 'Waking up scan service...' : 'Scanning Image...') : 'Scan Image'}
         </button>
       </div>
     </div>

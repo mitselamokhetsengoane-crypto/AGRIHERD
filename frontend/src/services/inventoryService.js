@@ -2,7 +2,7 @@ import api from './api';
 
 const inventoryService = {
   getAllItems: async () => {
-    const response = await api.get('/inventory');
+    const response = await api.get('/inventory/');
     return response.data;
   },
   getItemById: async (id) => {
@@ -10,7 +10,7 @@ const inventoryService = {
     return response.data;
   },
   createItem: async (data) => {
-    const response = await api.post('/inventory', data);
+    const response = await api.post('/inventory/', data);
     return response.data;
   },
   updateItem: async (id, data) => {

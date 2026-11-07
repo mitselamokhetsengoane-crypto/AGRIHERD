@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from datetime import date
+
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional
 from app.core.permissions import get_current_user
@@ -43,6 +45,45 @@ def add_income(data: TransactionCreate, current_user: dict = Depends(get_current
 def get_expenses(current_user: dict = Depends(get_current_user)):
     response = supabase.table("transactions").select("*").eq("user_id", current_user["sub"]).eq("type", "expense").execute()
     return response.data
+
+@router.get("/reports")
+def get_finance_reports(
+    start: date | None = Query(default=None),
+    end: date | None = Query(default=None),
+    current_user: dict = Depends(get_current_user),
+):
+    query = (
+        supabase.table("transactions")
+        .select("amount,type,date")
+        .eq("user_id", current_user["sub"])
+    )
+    if start:
+        query = query.gte("date", start.isoformat())
+    if end:
+        query = query.lte("date", end.isoformat())
+
+    response = query.execute()
+    monthly_totals = {}
+    for transaction in response.data:
+        transaction_date = transaction.get("date")
+        if not transaction_date:
+            continue
+        month_key = str(transaction_date)[:7]
+        totals = monthly_totals.setdefault(month_key, {"income": 0.0, "expenses": 0.0})
+        if transaction["type"] == "income":
+            totals["income"] += float(transaction["amount"])
+        elif transaction["type"] == "expense":
+            totals["expenses"] += float(transaction["amount"])
+
+    return [
+        {
+            "month": month,
+            "income": totals["income"],
+            "expenses": totals["expenses"],
+            "balance": totals["income"] - totals["expenses"],
+        }
+        for month, totals in sorted(monthly_totals.items(), reverse=True)
+    ]
 
 @router.post("/expenses")
 def add_expense(data: TransactionCreate, current_user: dict = Depends(get_current_user)):

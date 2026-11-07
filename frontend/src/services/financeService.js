@@ -26,7 +26,10 @@ const financeService = {
     return response.data;
   },
   getReports: async (startDate, endDate) => {
-    const response = await api.get(`/finance/reports?start=${startDate}&end=${endDate}`);
+    const params = {};
+    if (startDate) params.start = startDate;
+    if (endDate) params.end = endDate;
+    const response = await api.get('/finance/reports', { params });
     return response.data;
   }
 };

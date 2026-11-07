@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { formatCurrency } from '../../utils/formatters';
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -15,14 +16,36 @@ const Dashboard = () => {
         setData(response.data);
       } catch (error) {
         console.error("Failed to load dashboard data", error);
+        setError(
+          error.response?.data?.detail
+            || 'Dashboard data could not be loaded. Check your connection and try again.'
+        );
       } finally {
         setLoading(false);
       }
     };
     fetchDashboardData();
-  }, []);
+  }, [retry]);
 
   if (loading) return <div className="p-8 text-center text-subtext">Loading dashboard...</div>;
+  if (error) {
+    return (
+      <div role="alert" className="space-y-4 p-8 text-center text-error">
+        <p>{error}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setError('');
+            setLoading(true);
+            setRetry((attempt) => attempt + 1);
+          }}
+          className="rounded-md bg-primary px-4 py-2 text-white hover:bg-green-800"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   // If no data from backend yet, show empty states
   const summary = data || {

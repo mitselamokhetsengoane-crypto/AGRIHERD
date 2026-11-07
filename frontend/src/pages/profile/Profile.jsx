@@ -27,7 +27,14 @@ const Profile = () => {
         });
       } catch (error) {
         console.error('Failed to load profile', error);
-        setError('Your profile could not be loaded.');
+        setError(
+          error.response?.data?.detail
+            || (
+              error.response
+                ? `Your profile could not be loaded (HTTP ${error.response.status}).`
+                : 'Could not reach the profile service. Check your connection and try again.'
+            )
+        );
       } finally {
         setLoading(false);
       }

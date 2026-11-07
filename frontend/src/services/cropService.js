@@ -2,7 +2,7 @@ import api from './api';
 
 const cropService = {
   getAllCrops: async () => {
-    const response = await api.get('/crops');
+    const response = await api.get('/crops/');
     return response.data;
   },
   getCropById: async (id) => {
@@ -10,7 +10,7 @@ const cropService = {
     return response.data;
   },
   createCrop: async (data) => {
-    const response = await api.post('/crops', data);
+    const response = await api.post('/crops/', data);
     return response.data;
   },
   updateCrop: async (id, data) => {

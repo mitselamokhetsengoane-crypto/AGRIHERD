@@ -2,7 +2,7 @@ import api from './api';
 
 const livestockService = {
   getAllAnimals: async () => {
-    const response = await api.get('/livestock');
+    const response = await api.get('/livestock/');
     return response.data;
   },
   getAnimalById: async (id) => {
@@ -10,7 +10,7 @@ const livestockService = {
     return response.data;
   },
   createAnimal: async (data) => {
-    const response = await api.post('/livestock', data);
+    const response = await api.post('/livestock/', data);
     return response.data;
   },
   updateAnimal: async (id, data) => {

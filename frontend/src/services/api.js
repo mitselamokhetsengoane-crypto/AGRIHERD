@@ -29,6 +29,7 @@ api.interceptors.response.use(
     const isLoginRequest = requestUrl.endsWith('/auth/login');
     if (error.response && error.response.status === 401 && !isLoginRequest) {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);

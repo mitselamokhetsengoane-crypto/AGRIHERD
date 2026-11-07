@@ -1,16 +1,29 @@
 import api from './api';
 
 const aiService = {
-  scanImage: async (imageFile) => {
+  scanImage: async (imageFile, onRetry) => {
     const formData = new FormData();
     formData.append('file', imageFile);
-    
-    const response = await api.post('/disease-scanner/scan', formData, {
+
+    const request = () => api.post('/disease-scanner/scan', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response.data;
+
+    try {
+      const response = await request();
+      return response.data;
+    } catch (error) {
+      const shouldRetry = !error.response
+        || [502, 503, 504].includes(error.response.status);
+      if (!shouldRetry) throw error;
+
+      onRetry?.();
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const response = await request();
+      return response.data;
+    }
   },
 
   getScanHistory: async () => {
