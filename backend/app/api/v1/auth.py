@@ -9,7 +9,9 @@ from supabase_auth.errors import (
     AuthInvalidCredentialsError,
     AuthRetryableError,
 )
+from supabase import create_client
 
+from app.core.config import settings
 from app.core.permissions import get_current_user
 from app.core.security import create_access_token
 from app.database.connection import supabase
@@ -24,18 +26,22 @@ class ProfileUpdate(BaseModel):
     farm_name: Optional[str] = None
     location: Optional[str] = None
 
+
 @router.post("/register")
 def register(user: UserRegister):
     try:
-        # Create user in Supabase Auth
+        # 1. Create user in Supabase Auth
         auth_response = supabase.auth.sign_up({
             "email": user.email,
             "password": user.password,
         })
         user_id = auth_response.user.id
 
-        # Insert into profiles table
-        supabase.table("profiles").insert({
+        # 2. Use Admin Client (Service Role) to bypass RLS for profile creation
+        admin_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+        
+        # 3. Insert into profiles table
+        admin_client.table("profiles").insert({
             "id": user_id,
             "full_name": user.full_name,
             "email": user.email,
@@ -46,7 +52,9 @@ def register(user: UserRegister):
 
         return {"message": "User registered successfully", "user_id": user_id}
     except Exception as e:
+        logger.error(f"🔴 REGISTRATION ERROR: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.post("/login")
 def login(user: UserLogin):
@@ -106,6 +114,7 @@ def login(user: UserLogin):
     })
     return {"access_token": token, "token_type": "bearer", "user": profile}
 
+
 @router.get("/me")
 def get_profile(current_user: dict = Depends(get_current_user)):
     try:
@@ -113,6 +122,7 @@ def get_profile(current_user: dict = Depends(get_current_user)):
         return profile.data[0]
     except Exception as e:
         raise HTTPException(status_code=404, detail="Profile not found")
+
 
 @router.patch("/me")
 def update_profile(
