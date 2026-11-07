@@ -1,18 +1,18 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
-import AuthLayout from '../layouts/AuthLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 
 // ==========================================
-// AUTH PAGES
+// 1. PUBLIC PAGES
 // ==========================================
+import Welcome from '../pages/auth/Welcome';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import ForgotPassword from '../pages/auth/ForgotPassword';
 
 // ==========================================
-// FARM APPLICATION PAGES (Farmer / Worker)
+// 2. FARM APPLICATION PAGES (Farmer / Worker)
 // ==========================================
 import Dashboard from '../pages/dashboard/Dashboard';
 
@@ -69,9 +69,8 @@ import Notifications from '../pages/notifications/Notifications';
 import Profile from '../pages/profile/Profile';
 
 // ==========================================
-// ADMIN APPLICATION PAGES (Admin Only)
+// 3. ADMIN APPLICATION PAGES (Admin Only)
 // ==========================================
-// ✅ FIXED: Pointing to the 'security' folder where the files actually live
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import FarmManagement from '../pages/admin/FarmManagement';
 import UserManagement from '../pages/security/UserManagement';
@@ -80,6 +79,7 @@ import DataClassification from '../pages/security/DataClassification';
 import AuditLogs from '../pages/security/AuditLogs';
 import SecuritySettings from '../pages/security/SecuritySettings';
 
+// Helper for redirecting old URLs
 const LegacyAppRedirect = () => {
   const { pathname, search, hash } = useLocation();
   return <Navigate to={`/app${pathname}${search}${hash}`} replace />;
@@ -89,14 +89,16 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* ========================================== */}
-      {/* 1. PUBLIC ROUTES                           */}
+      {/* 1. PUBLIC ROUTES (No Authentication Needed)*/}
       {/* ========================================== */}
-      <Route element={<AuthLayout />}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
-      </Route>
+      {/* The root '/' now shows the Welcome page */}
+      <Route path="/" element={<Welcome />} />
+      
+      {/* Auth pages are now standalone (no AuthLayout wrapper) */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/signup" element={<Register />} /> {/* Alias for compatibility */}
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* ========================================== */}
       {/* 2. FARM APPLICATION ROUTES                 */}
@@ -151,6 +153,7 @@ const AppRoutes = () => {
           <Route path="notifications" element={<Notifications />} />
           <Route path="profile" element={<Profile />} />
         </Route>
+        {/* Legacy redirects for old /dashboard, /crops, etc. */}
         <Route path="/:legacyPath/*" element={<LegacyAppRedirect />} />
       </Route>
 
@@ -160,7 +163,6 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="farms" element={<FarmManagement />} />
@@ -169,12 +171,12 @@ const AppRoutes = () => {
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="settings" element={<SecuritySettings />} />
         </Route>
-
       </Route>
 
-      {/* 4. FALLBACK (404) */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
-
+      {/* ========================================== */}
+      {/* 4. FALLBACK (404)                          */}
+      {/* ========================================== */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };

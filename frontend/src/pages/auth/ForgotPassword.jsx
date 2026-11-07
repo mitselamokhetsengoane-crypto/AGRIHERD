@@ -21,29 +21,47 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-maintext text-center mb-1">Forgot Password?</h2>
-        <p className="text-subtext text-center text-sm">Enter your email and we'll help you reset it.</p>
-      </div>
-
-      {message && <div className="bg-green-50 text-primary p-3 rounded-md text-sm text-center">{message}</div>}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm text-subtext mb-1">Email or Phone Number</label>
-          <input type="email" required className="w-full border border-gray-300 rounded-md px-4 py-2" 
-            value={email} onChange={(e) => setEmail(e.target.value)} />
+    <div className="min-h-screen bg-[#F5F9F5] flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#2E7D32] mb-4">
+            <span className="text-2xl font-bold text-white">AH</span>
+          </div>
+          <h1 className="text-3xl font-bold text-[#1B1B1B]">Forgot Password?</h1>
+          <p className="text-[#6B7280] mt-2">Enter your email and we'll help you reset it</p>
         </div>
 
-        <button type="submit" disabled={loading} className="w-full bg-primary text-white py-3 rounded-md hover:bg-green-800 transition font-medium disabled:opacity-50">
-          {loading ? 'Sending...' : 'Send Reset Link'}
-        </button>
-      </form>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+          {message && (
+            <div className="mb-5 bg-green-50 border border-green-100 text-[#2E7D32] text-sm rounded-lg px-4 py-3 text-center">
+              {message}
+            </div>
+          )}
 
-      <p className="text-center text-sm text-subtext">
-        <Link to="/login" className="text-primary font-medium hover:underline">Back to Login</Link>
-      </p>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-[#1B1B1B] mb-1.5">Email Address</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-[#FAFCFA] focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32]"
+              />
+            </div>
+
+            <button type="submit" disabled={loading}
+              className="w-full bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-semibold py-3.5 rounded-xl transition disabled:opacity-60">
+              {loading ? 'Sending...' : 'Send Reset Link'}
+            </button>
+          </form>
+
+          <p className="text-center text-sm text-[#6B7280] mt-6">
+            <Link to="/login" className="text-[#2E7D32] font-medium hover:underline">← Back to Login</Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
