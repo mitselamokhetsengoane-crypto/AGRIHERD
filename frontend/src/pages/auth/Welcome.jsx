@@ -8,9 +8,7 @@ const Welcome = () => {
       <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#2E7D32] flex items-center justify-center text-white font-bold text-lg">
-              AH
-            </div>
+            <img src="/logo.jpeg" alt="AgriHerd" className="h-10 w-10 object-contain" />
             <span className="text-xl font-bold text-[#2E7D32]">AgriHerd</span>
           </div>
           <Link
@@ -136,51 +134,6 @@ const Welcome = () => {
         </div>
       </section>
 
-      {/* ============ CTA ============ */}
-      <section className="py-20 bg-[#2E7D32]">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            Ready to Digitize Your Farm?
-          </h2>
-          <p className="text-green-100 text-lg mb-10">
-            Join hundreds of farmers already managing their farms smarter with AgriHerd.
-          </p>
-          <Link
-            to="/login"
-            className="inline-block bg-white text-[#2E7D32] hover:bg-gray-100 px-10 py-4 rounded-xl font-bold text-lg transition shadow-lg"
-          >
-            Access Services Now
-          </Link>
-        </div>
-      </section>
-
-      {/* ============ FOOTER ============ */}
-      <footer className="bg-[#1B5E20] text-green-100 py-12">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <h4 className="text-white font-bold text-lg mb-3">AgriHerd</h4>
-              <p className="text-sm text-green-200">Smart agricultural management for the modern farmer.</p>
-            </div>
-            <div>
-              <h4 className="text-white font-bold mb-3">Quick Links</h4>
-              <ul className="space-y-2 text-sm">
-                <li><Link to="/login" className="hover:text-white">Login</Link></li>
-                <li><Link to="/register" className="hover:text-white">Register</Link></li>
-                <li><Link to="/forgot-password" className="hover:text-white">Reset Password</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-bold mb-3">Contact</h4>
-              <p className="text-sm text-green-200">support@agriherd.com</p>
-              <p className="text-sm text-green-200 mt-1">+266 5800 0000</p>
-            </div>
-          </div>
-          <div className="border-t border-green-800 pt-6 text-center text-xs text-green-300">
-            © {new Date().getFullYear()} AgriHerd. All rights reserved. | BIDT3110 Project
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

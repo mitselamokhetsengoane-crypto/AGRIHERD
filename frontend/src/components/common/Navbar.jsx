@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import BackButton from './BackButton';
 
 const Navbar = ({ toggleSidebar }) => {
   const { user, logout } = useContext(AuthContext);
@@ -14,6 +15,7 @@ const Navbar = ({ toggleSidebar }) => {
   return (
     <header className="bg-white shadow-sm h-16 flex items-center justify-between px-4 md:px-6 z-10">
       <div className="flex items-center">
+        <BackButton fallbackPath="/app/dashboard" className="mr-3" compact />
         <button 
           onClick={toggleSidebar}
           className="md:hidden mr-4 text-subtext hover:text-primary focus:outline-none"

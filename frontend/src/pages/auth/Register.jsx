@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import BackButton from '../../components/common/BackButton';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -42,9 +43,7 @@ const Register = () => {
     <div className="min-h-screen bg-[#F5F9F5] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#2E7D32] mb-4">
-            <span className="text-2xl font-bold text-white">AH</span>
-          </div>
+          <img src="/logo.jpeg" alt="AgriHerd" className="w-16 h-16 object-contain mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-[#1B1B1B]">Create Account</h1>
           <p className="text-[#6B7280] mt-2">Join AgriHerd and manage your farm smarter</p>
         </div>
@@ -111,9 +110,9 @@ const Register = () => {
           </p>
         </div>
 
-        <p className="text-center text-xs text-[#6B7280] mt-6">
-          <Link to="/" className="hover:text-[#2E7D32]">← Back to Home</Link>
-        </p>
+        <div className="mt-6 flex justify-center">
+          <BackButton />
+        </div>
       </div>
     </div>
   );

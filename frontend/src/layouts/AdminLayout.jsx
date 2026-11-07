@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import Footer from '../components/common/Footer';
+import BackButton from '../components/common/BackButton';
 import { AuthContext } from '../context/AuthContext';
 
 const AdminLayout = () => {
@@ -58,6 +59,7 @@ const AdminLayout = () => {
       <div className="main-content-wrapper">
         <header className="header-fixed bg-white shadow-sm flex items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-3">
+            <BackButton fallbackPath="/admin/dashboard" compact />
             <button type="button" onClick={() => setIsSidebarOpen(true)} aria-label="Open admin navigation" className="md:hidden rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">
               Menu
             </button>
