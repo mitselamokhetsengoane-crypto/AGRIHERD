@@ -6,8 +6,8 @@ supabase
 python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
-ultralytics
 pillow
 web3
 eth-account
 email-validator
+httpx
