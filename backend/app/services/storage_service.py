@@ -1,10 +1,11 @@
 import uuid
 import logging
+from app.core.config import settings
 from app.database.connection import supabase
 
 logger = logging.getLogger(__name__)
 
-BUCKET_NAME = "disease-scans"
+BUCKET_NAME = settings.SUPABASE_SCAN_BUCKET
 
 def upload_scan_image(image_bytes: bytes, user_id: str) -> str:
     """
@@ -25,5 +26,5 @@ def upload_scan_image(image_bytes: bytes, user_id: str) -> str:
         return public_url
         
     except Exception as e:
-        logger.error(f"Failed to upload image to storage: {str(e)}")
+        logger.exception("Failed to upload image to storage bucket %s", BUCKET_NAME)
         raise RuntimeError("Could not upload image to storage.") from e

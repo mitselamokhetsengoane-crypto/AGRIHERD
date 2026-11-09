@@ -8,6 +8,7 @@ from PIL import Image
 
 from app.core.permissions import get_current_user
 from app.main import api, app
+from app.services import storage_service
 
 
 client = TestClient(app)
@@ -57,6 +58,10 @@ class TestDiseaseScanner(unittest.TestCase):
                 return_value=prediction,
             ) as predict_mock,
             patch("app.api.v1.disease_scanner.supabase") as supabase_mock,
+            patch(
+                "app.api.v1.disease_scanner.upload_scan_image",
+                return_value="https://example.com/scan.jpg",
+            ) as upload_mock,
         ):
             insert = supabase_mock.table.return_value.insert.return_value
             insert.select.return_value.execute.return_value.data = [saved_record]
@@ -70,12 +75,14 @@ class TestDiseaseScanner(unittest.TestCase):
         predict_mock.assert_awaited_once()
         self.assertTrue(predict_mock.await_args.kwargs["image_bytes"])
         self.assertEqual(predict_mock.await_args.kwargs["content_type"], "image/jpeg")
+        upload_mock.assert_called_once()
         supabase_mock.table.assert_called_once_with("disease_scans")
         supabase_mock.table.return_value.insert.assert_called_once_with({
             "user_id": self.user_id,
             "detected_disease": "Healthy_Banana",
             "confidence": 0.8,
             "prediction": prediction,
+            "image_url": "https://example.com/scan.jpg",
         })
 
     def test_scan_does_not_save_when_ai_prediction_fails(self):
@@ -97,6 +104,7 @@ class TestDiseaseScanner(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["detail"], "Model is unavailable.")
         supabase_mock.table.assert_not_called()
+
 
     def test_scan_does_not_save_invalid_ai_response(self):
         with (
@@ -185,6 +193,10 @@ class TestDiseaseScanner(unittest.TestCase):
                 return_value=prediction,
             ),
             patch("app.api.v1.disease_scanner.supabase") as supabase_mock,
+            patch(
+                "app.api.v1.disease_scanner.upload_scan_image",
+                return_value="https://example.com/scan.jpg",
+            ),
         ):
             supabase_mock.table.return_value.insert.return_value.select.return_value.execute.side_effect = (
                 RuntimeError("database unavailable")
@@ -196,3 +208,53 @@ class TestDiseaseScanner(unittest.TestCase):
 
         self.assertEqual(response.status_code, 500)
         self.assertIn("could not be saved", response.json()["detail"])
+
+    def test_scan_reports_storage_upload_failure(self):
+        prediction = {
+            "detections": [],
+            "status": "no_detection",
+            "low_confidence": False,
+            "message": "No known condition was recognised.",
+        }
+        with (
+            patch(
+                "app.api.v1.disease_scanner.predict_disease_remote",
+                new_callable=AsyncMock,
+                return_value=prediction,
+            ),
+            patch("app.api.v1.disease_scanner.supabase") as supabase_mock,
+            patch(
+                "app.api.v1.disease_scanner.upload_scan_image",
+                side_effect=RuntimeError("Could not upload image to storage."),
+            ),
+        ):
+            response = client.post(
+                "/api/v1/disease-scanner/scan",
+                files={"file": ("crop.png", self.make_png(), "image/png")},
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.json()["detail"],
+            "Prediction succeeded, but image could not be saved.",
+        )
+        supabase_mock.table.assert_not_called()
+
+
+class TestStorageService(unittest.TestCase):
+    def test_upload_uses_configured_bucket(self):
+        image_bytes = b"jpeg data"
+        user_id = str(uuid4())
+        with (
+            patch.object(storage_service, "BUCKET_NAME", "configured-bucket"),
+            patch.object(storage_service, "supabase") as supabase_mock,
+        ):
+            storage = supabase_mock.storage.from_.return_value
+            storage.get_public_url.return_value = "https://example.com/scan.jpg"
+
+            image_url = storage_service.upload_scan_image(image_bytes, user_id)
+
+        self.assertEqual(image_url, "https://example.com/scan.jpg")
+        self.assertEqual(supabase_mock.storage.from_.call_count, 2)
+        supabase_mock.storage.from_.assert_any_call("configured-bucket")
+        storage.upload.assert_called_once()
