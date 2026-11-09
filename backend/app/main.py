@@ -11,8 +11,7 @@ logger = logging.getLogger("agriherd")
 api = FastAPI(title="AgriHerd API", version="1.0.0")
 
 # ---------- Middlewares ----------
-api.add_middleware(GZipMiddleware, minimum_size=1000)
-
+# CORS MUST be added before GZip so error responses still get CORS headers
 _default_origins = "https://agriherd-1.onrender.com,http://localhost:5173,http://localhost:3000"
 ORIGINS = [
     o.strip().rstrip("/")
@@ -28,6 +27,8 @@ api.add_middleware(
     allow_headers=["*"],
     max_age=600,
 )
+
+api.add_middleware(GZipMiddleware, minimum_size=1000)
 
 def mount(module: str, prefix: str, tag: str, optional: bool = False) -> None:
     try:
@@ -67,7 +68,6 @@ def root():
 
 @api.get("/health")
 def health():
-    # Notice: No AI status check here anymore. This backend is just an API.
     return {"status": "ok"}
 
 app = api
