@@ -18,11 +18,10 @@ async def predict_disease_remote(image_bytes: bytes, filename: str, content_type
     files = {"file": (filename, image_bytes, content_type)}
 
     try:
-        # We use a long timeout (e.g., 60s) because Cloud Run may need to cold-start
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        # INCREASED TIMEOUT TO 120 SECONDS to allow Render to wake up
+        async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(url, headers=headers, files=files)
             
-            # Raise an exception for 4xx or 5xx responses
             response.raise_for_status()
             try:
                 result = response.json()
@@ -33,16 +32,18 @@ async def predict_disease_remote(image_bytes: bytes, filename: str, content_type
             return result
 
     except httpx.TimeoutException:
-        logger.error("AI service request timed out.")
-        raise HTTPException(status_code=504, detail="The AI service took too long to respond.")
+        logger.error("AI service request timed out after 120 seconds.")
+        raise HTTPException(status_code=504, detail="The AI service took too long to wake up and respond. Please try again.")
+    
     except httpx.HTTPStatusError as exc:
-        logger.error(f"AI service returned an error: {exc.response.text}")
-        # Pass through the AI service's error message if it's clean
+        logger.error(f"AI service returned error code {exc.response.status_code}: {exc.response.text}")
+        # Try to extract the actual error from the AI service
         try:
             detail = exc.response.json().get("detail", "AI prediction failed.")
         except Exception:
-            detail = "AI prediction failed."
+            detail = f"AI service error (HTTP {exc.response.status_code})"
         raise HTTPException(status_code=exc.response.status_code, detail=detail)
+    
     except httpx.RequestError as exc:
         logger.error(f"Could not connect to AI service: {str(exc)}")
         raise HTTPException(status_code=503, detail="Could not reach the AI service. It may be asleep or unavailable.")

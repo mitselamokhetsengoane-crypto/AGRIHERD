@@ -22,11 +22,19 @@ def get_animal(animal_id: str, current_user: dict = Depends(get_current_user)):
 @router.post("/")
 def create_animal(animal: dict, current_user: dict = Depends(get_current_user)):
     try:
-        result = LivestockService.create(current_user["sub"], animal)
-        AuditService.log(current_user["sub"], "CREATE_ANIMAL", f"Added animal {animal.get('name')}")
+        # Clean the data: only allow fields that exist in the Supabase table
+        allowed_fields = ["animal_id", "name", "type", "breed", "gender", "age", "weight", "health_status", "notes"]
+        clean_data = {k: v for k, v in animal.items() if k in allowed_fields}
+        
+        # Convert empty strings to None (null) for optional fields
+        for key in ["age", "weight"]:
+            if clean_data.get(key) == "":
+                clean_data[key] = None
+                
+        result = LivestockService.create(current_user["sub"], clean_data)
+        AuditService.log(current_user["sub"], "CREATE_ANIMAL", f"Added animal {clean_data.get('name')}")
         return result
     except Exception as e:
-        # This captures the real Supabase error (e.g., missing column) and returns it to the frontend
         raise HTTPException(status_code=400, detail=f"Database error: {str(e)}")
 
 @router.delete("/{animal_id}")
