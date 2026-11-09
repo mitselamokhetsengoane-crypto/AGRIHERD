@@ -10,41 +10,30 @@ const ScanResults = () => {
 
   useEffect(() => {
     let active = true;
-
-    const fetchResult = async () => {
+    const load = async () => {
       try {
         setLoading(true);
         setError('');
-        const savedScan = await aiService.getScanResult(scanId);
-        if (active) setScan(savedScan);
+        const s = await aiService.getScanResult(scanId);
+        if (active) setScan(s);
       } catch (err) {
         if (active) {
-          setError(
-            err?.response?.data?.detail ||
-            err?.message ||
-            'Could not load this scan result. Please try again.'
-          );
+          setError(err?.response?.data?.detail || err?.message || 'Could not load scan.');
         }
       } finally {
         if (active) setLoading(false);
       }
     };
-
-    fetchResult();
-    return () => {
-      active = false;
-    };
+    load();
+    return () => { active = false; };
   }, [scanId]);
 
-  if (loading) {
-    return <div className="p-8 text-center text-subtext">Loading scan results...</div>;
-  }
-
+  if (loading) return <div className="p-8 text-center text-subtext">Loading scan results...</div>;
   if (error || !scan) {
     return (
       <div className="p-8 text-center text-error">
-        {error || 'Scan result not found.'}{' '}
-        <Link to="/disease-scanner" className="underline">Go back</Link>
+        {error || 'Scan not found.'}{' '}
+        <Link to="/app/disease-scanner" className="underline">Go back</Link>
       </div>
     );
   }
@@ -57,21 +46,20 @@ const ScanResults = () => {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-maintext">Scan Results</h1>
-        <Link to="/disease-scanner" className="text-primary hover:underline text-sm">Scan Another</Link>
+        <Link to="/app/disease-scanner" className="text-primary hover:underline text-sm">Scan Another</Link>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row">
         <div className="md:w-1/2 bg-gray-100 flex items-center justify-center p-4">
-           {scan.image_url ? (
-              <img src={scan.image_url} alt="Scanned crop" className="max-h-80 object-contain" />
-           ) : (
-              <p className="text-sm text-subtext">Original image is not available.</p>
-           )}
+          {scan.image_url ? (
+            <img src={scan.image_url} alt="Scanned crop" className="max-h-80 object-contain" />
+          ) : (
+            <p className="text-sm text-subtext">Original image is not available.</p>
+          )}
         </div>
-        
+
         <div className="md:w-1/2 p-6 space-y-4">
           <h2 className="text-lg font-bold text-maintext border-b pb-2">Detected Issues</h2>
-          
           {detections.length === 0 ? (
             <p className="text-primary font-medium">
               {hasPrediction

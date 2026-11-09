@@ -6,7 +6,7 @@ const MAX_DIMENSION = 1280;
 const JPEG_QUALITY = 0.85;
 const SKIP_COMPRESSION_BELOW_BYTES = 300 * 1024;
 
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export const shouldRetry = (error) => {
   if (!error.response) return true;
@@ -28,7 +28,7 @@ export const prepareImage = async (file) => {
     canvas.height = height;
     canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
     bitmap.close?.();
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY));
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', JPEG_QUALITY));
     if (!blob || blob.size >= file.size) return file;
     return new File([blob], `${file.name.replace(/\.\w+$/, '')}.jpg`, { type: 'image/jpeg' });
   } catch {
@@ -37,14 +37,13 @@ export const prepareImage = async (file) => {
 };
 
 const aiService = {
-  scanImage: async (imageFile, onRetry) => {
-    // 1. WALK UP THE AI SERVICE FIRST
+  scanImage: async (imageFile, onRetry, onWake) => {
+    // 1) Wake the AI service first
+    onWake?.();
     try {
-        // This call can take up to 120 seconds if the AI service is asleep.
-        await api.get('/ai/wake', { timeout: 120000 });
-    } catch (e) {
-        // Even if wake fails, we will still try to scan. 
-        console.warn("Wake-up check failed, proceeding to scan anyway.");
+      await api.get('/ai/wake', { timeout: 120000 });
+    } catch {
+      // ignore; we still try the scan
     }
 
     const prepared = await prepareImage(imageFile);
@@ -72,13 +71,13 @@ const aiService = {
   },
 
   getScanHistory: async () => {
-    const response = await api.get('/disease-scanner/history');
-    return response.data;
+    const res = await api.get('/disease-scanner/history');
+    return res.data;
   },
 
   getScanResult: async (scanId) => {
-    const response = await api.get(`/disease-scanner/scans/${encodeURIComponent(scanId)}`);
-    return response.data;
+    const res = await api.get(`/disease-scanner/scans/${encodeURIComponent(scanId)}`);
+    return res.data;
   },
 };
 
