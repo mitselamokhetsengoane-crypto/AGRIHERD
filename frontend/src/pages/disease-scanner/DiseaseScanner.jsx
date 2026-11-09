@@ -30,8 +30,12 @@ const DiseaseScanner = () => {
     setError('');
     try {
       // This calls the FastAPI backend which runs your YOLOv8 best.pt model
-      const result = await aiService.scanImage(image, () => setWakingServer(true));
-      navigate('/disease-scanner/results', { state: { result, preview } });
+      const scan = await aiService.scanImage(image, () => setWakingServer(true));
+      if (!scan?.id) {
+        setError('The scan was completed, but its saved result ID was missing.');
+        return;
+      }
+      navigate(`/disease-scanner/results/${encodeURIComponent(scan.id)}`);
     } catch (err) {
       const detail = err.response?.data?.detail;
       if (typeof detail === 'string') {

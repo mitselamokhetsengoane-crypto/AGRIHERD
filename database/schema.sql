@@ -291,6 +291,7 @@ CREATE TABLE public.disease_scans (
     detected_disease VARCHAR(150),
     confidence NUMERIC(5, 4),
     image_url TEXT,
+    prediction JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

@@ -97,7 +97,7 @@ const ScanHistory = () => {
                 </div>
 
                 <h3 className="font-bold text-maintext">
-                  {scan.detected_disease || 'Healthy'}
+                  {scan.detected_disease || 'No disease detected'}
                 </h3>
 
                 <p className="text-sm text-subtext mb-2">
@@ -108,6 +108,12 @@ const ScanHistory = () => {
                   <span className="text-xs font-semibold bg-background text-primary px-2 py-1 rounded">
                     {confidencePercent}
                   </span>
+                  <Link
+                    to={`/disease-scanner/results/${encodeURIComponent(scan.id)}`}
+                    className="text-primary hover:underline text-sm"
+                  >
+                    View results
+                  </Link>
                 </div>
               </div>
             );

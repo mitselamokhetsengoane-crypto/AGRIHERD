@@ -24,7 +24,13 @@ async def predict_disease_remote(image_bytes: bytes, filename: str, content_type
             
             # Raise an exception for 4xx or 5xx responses
             response.raise_for_status()
-            return response.json()
+            try:
+                result = response.json()
+            except ValueError as exc:
+                raise HTTPException(status_code=502, detail="The AI service returned an invalid response.") from exc
+            if not isinstance(result, dict):
+                raise HTTPException(status_code=502, detail="The AI service returned an invalid response.")
+            return result
 
     except httpx.TimeoutException:
         logger.error("AI service request timed out.")

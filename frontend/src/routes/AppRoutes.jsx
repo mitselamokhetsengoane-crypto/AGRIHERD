@@ -142,7 +142,7 @@ const AppRoutes = () => {
           <Route path="marketplace/orders" element={<MyOrders />} />
 
           <Route path="disease-scanner" element={<DiseaseScanner />} />
-          <Route path="disease-scanner/results" element={<ScanResults />} />
+          <Route path="disease-scanner/results/:scanId" element={<ScanResults />} />
           <Route path="disease-scanner/history" element={<ScanHistory />} />
 
           <Route path="tasks" element={<Tasks />} />

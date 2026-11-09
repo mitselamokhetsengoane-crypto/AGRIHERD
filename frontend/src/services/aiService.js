@@ -76,6 +76,11 @@ const aiService = {
     const response = await api.get('/disease-scanner/history');
     return response.data;
   },
+
+  getScanResult: async (scanId) => {
+    const response = await api.get(`/disease-scanner/scans/${encodeURIComponent(scanId)}`);
+    return response.data;
+  },
 };
 
 export default aiService;
