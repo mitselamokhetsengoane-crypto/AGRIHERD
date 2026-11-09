@@ -5,10 +5,28 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+async def wake_ai_service() -> dict:
+    """
+    Pings the AI service to wake it up from Render's sleep mode.
+    Holds the connection open for up to 120 seconds.
+    """
+    if not settings.AI_SERVICE_URL:
+        return {"status": "error", "message": "AI service URL not configured"}
+
+    url = f"{settings.AI_SERVICE_URL.rstrip('/')}/health"
+    try:
+        logger.info(f"Waking up AI service at {url}...")
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            logger.info("AI service is awake.")
+            return {"status": "awake", "service_response": response.json()}
+    except Exception as e:
+        logger.error(f"Failed to wake AI service: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
 async def predict_disease_remote(image_bytes: bytes, filename: str, content_type: str) -> dict:
-    """
-    Sends the image to the separate AI service via HTTP.
-    """
     if not settings.AI_SERVICE_URL or not settings.AI_SERVICE_TOKEN:
         logger.error("AI_SERVICE_URL or AI_SERVICE_TOKEN is missing in configuration.")
         raise HTTPException(status_code=503, detail="AI service is not configured on the server.")
@@ -18,7 +36,6 @@ async def predict_disease_remote(image_bytes: bytes, filename: str, content_type
     files = {"file": (filename, image_bytes, content_type)}
 
     try:
-        # INCREASED TIMEOUT TO 120 SECONDS to allow Render to wake up
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(url, headers=headers, files=files)
             
@@ -37,7 +54,6 @@ async def predict_disease_remote(image_bytes: bytes, filename: str, content_type
     
     except httpx.HTTPStatusError as exc:
         logger.error(f"AI service returned error code {exc.response.status_code}: {exc.response.text}")
-        # Try to extract the actual error from the AI service
         try:
             detail = exc.response.json().get("detail", "AI prediction failed.")
         except Exception:

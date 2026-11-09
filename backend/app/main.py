@@ -11,7 +11,6 @@ logger = logging.getLogger("agriherd")
 api = FastAPI(title="AgriHerd API", version="1.0.0")
 
 # ---------- Middlewares ----------
-# CORS MUST be added before GZip so error responses still get CORS headers
 _default_origins = "https://agriherd-1.onrender.com,http://localhost:5173,http://localhost:3000"
 ORIGINS = [
     o.strip().rstrip("/")
@@ -60,6 +59,7 @@ mount("dashboard", "/api/v1/dashboard", "Dashboard")
 
 # ---- optional ----
 mount("disease_scanner", "/api/v1/disease-scanner", "Disease Scanner", optional=True)
+mount("ai_wake", "/api/v1/ai", "AI Wake", optional=True) # <-- NEW ROUTE ADDED
 mount("blockchain", "/api/v1/blockchain", "Blockchain", optional=True)
 
 @api.get("/")
