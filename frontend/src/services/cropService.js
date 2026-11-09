@@ -21,10 +21,14 @@ const cropService = {
     const response = await api.delete(`/crops/${id}`);
     return response.data;
   },
-  getHarvestRecords: async () => {
-    const response = await api.get('/crops/harvests');
+  getHarvestRecords: async (cropId) => {
+    const response = await api.get(`/crops/${cropId}/harvests`);
     return response.data;
-  }
+  },
+  getPlantingRecords: async (cropId) => {
+    const response = await api.get(`/crops/${cropId}/plantings`);
+    return response.data;
+  },
 };
 
 export default cropService;

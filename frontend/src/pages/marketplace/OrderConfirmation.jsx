@@ -1,17 +1,44 @@
 import { Link, Navigate, useLocation } from 'react-router-dom';
+import { formatCurrency } from '../../utils/formatters';
 
 const OrderConfirmation = () => {
   const { state } = useLocation();
+  const result = state?.result;
 
-  if (!state?.order) return <Navigate to="/marketplace/orders" replace />;
+  if (!result) return <Navigate to="/marketplace/orders" replace />;
 
   return (
-    <section className="mx-auto max-w-xl rounded-xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-      <h1 className="text-2xl font-bold text-maintext">Order placed</h1>
-      <p className="mt-2 text-subtext">Your order was submitted successfully. You can review its status in your orders.</p>
+    <section className="mx-auto max-w-2xl rounded-xl border border-gray-100 bg-white p-8 shadow-sm">
+      <h1 className="text-2xl font-bold text-maintext text-center">Order placed</h1>
+      <p className="mt-2 text-subtext text-center">
+        Your order was submitted successfully.
+      </p>
+
+      <div className="mt-6 space-y-3">
+        {result.orders?.map((order) => (
+          <div key={order.id} className="border rounded-md p-4 flex justify-between items-center">
+            <div>
+              <p className="text-sm font-medium text-maintext">Order #{order.id.slice(0, 8)}</p>
+              <p className="text-xs text-subtext">Status: {order.status}</p>
+            </div>
+            <p className="text-primary font-bold">{formatCurrency(order.total)}</p>
+          </div>
+        ))}
+      </div>
+
+      {result.is_simulated && (
+        <p className="mt-4 text-center text-xs text-error font-medium">
+          Demonstration payment — no real money was transferred.
+        </p>
+      )}
+
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Link to="/marketplace/orders" className="rounded-md bg-primary px-5 py-2 font-medium text-white hover:bg-green-800">View My Orders</Link>
-        <Link to="/marketplace" className="rounded-md border border-gray-300 px-5 py-2 font-medium text-gray-700 hover:bg-gray-50">Continue Shopping</Link>
+        <Link to="/marketplace/orders" className="rounded-md bg-primary px-5 py-2 font-medium text-white hover:bg-green-800">
+          View My Orders
+        </Link>
+        <Link to="/marketplace" className="rounded-md border border-gray-300 px-5 py-2 font-medium text-gray-700 hover:bg-gray-50">
+          Continue Shopping
+        </Link>
       </div>
     </section>
   );

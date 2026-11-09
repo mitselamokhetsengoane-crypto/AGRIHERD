@@ -8,7 +8,9 @@ const Sidebar = ({ closeMobile }) => {
     { name: 'Tasks', path: '/app/tasks' },
     { name: 'Inventory', path: '/app/inventory' },
     { name: 'Finance', path: '/app/finance' },
-    { name: 'Marketplace', path: '/app/marketplace' },
+    { name: 'My Listings', path: '/app/marketplace/listings' },
+    { name: 'Orders Received', path: '/app/marketplace/orders' },
+    { name: 'Browse Marketplace', path: '/marketplace' },
     { name: 'Disease Scanner', path: '/app/disease-scanner' },
   ];
 
