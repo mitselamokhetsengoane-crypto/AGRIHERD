@@ -235,6 +235,21 @@ class TestMarketplaceBuyerRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertIn("011_buyer_marketplace_checkout.sql", response.json()["detail"])
 
+    def test_add_to_cart_reports_missing_rpc_execute_permission(self):
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.rpc.return_value.execute.side_effect = Exception(
+                "403 Forbidden: permission denied for function add_marketplace_cart_item "
+                "(42501)"
+            )
+            response = client.post(
+                "/api/v1/marketplace/cart",
+                json={"product_id": "product-id", "quantity": 1},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("013_marketplace_cart_rpc_permissions.sql", response.json()["detail"])
+        self.assertIn("service-role key", response.json()["detail"])
+
     def test_add_to_cart_reports_missing_cart_table_after_rpc(self):
         cart_items_table = mock_table([])
         cart_items_table.execute.side_effect = Exception(

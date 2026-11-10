@@ -191,6 +191,16 @@ def _cart_with_items(cart_id: str) -> dict:
 def _raise_marketplace_rpc_error(exc: Exception, operation: str) -> None:
     message = str(exc)
     lowered = message.lower()
+    if "permission denied for function add_marketplace_cart_item" in lowered:
+        logger.error("%s was denied permission to execute the cart RPC: %s", operation, message)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The backend's Supabase role cannot execute the cart function. Apply "
+                "database/migrations/013_marketplace_cart_rpc_permissions.sql and verify "
+                "Render uses the service-role key for this same Supabase project."
+            ),
+        ) from exc
     if (
         "pgrst202" in lowered
         or "could not find the function" in lowered
