@@ -66,6 +66,7 @@ import RolesPermissions from '../pages/security/RolesPermissions';
 import DataClassification from '../pages/security/DataClassification';
 import AuditLogs from '../pages/security/AuditLogs';
 import SecuritySettings from '../pages/security/SecuritySettings';
+import BlockchainMonitor from '../pages/admin/BlockchainMonitor';
 
 const LegacyAppRedirect = () => {
   const { pathname, search, hash } = useLocation();
@@ -169,6 +170,7 @@ const AppRoutes = () => {
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="settings" element={<SecuritySettings />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="blockchain" element={<BlockchainMonitor />} />
         </Route>
       </Route>
 
