@@ -46,7 +46,7 @@ async def wake_ai_service() -> dict:
         return {"status": "error", "message": "AI_SERVICE_URL not configured"}
     url = f"{settings.AI_SERVICE_URL.rstrip('/')}/health"
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10.0, read=settings.AI_WAKE_SECONDS, write=10.0, pool=10.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(connect=settings.AI_CONNECT_TIMEOUT, read=settings.AI_WAKE_SECONDS, write=10.0, pool=10.0)) as client:
             r = await client.get(url)
             r.raise_for_status()
             return {"status": "awake", "response": r.json()}

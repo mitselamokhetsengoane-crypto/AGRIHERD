@@ -87,6 +87,51 @@ def _require_admin(user: dict) -> None:
         raise HTTPException(status_code=403, detail="Administrators only.")
 
 
+def _product_image_storage_failure(exc: Exception) -> HTTPException:
+    error_parts = (
+        str(exc),
+        getattr(exc, "message", ""),
+        getattr(exc, "code", ""),
+        getattr(exc, "status", ""),
+    )
+    message = " ".join(str(part) for part in error_parts if part).lower()
+
+    if "bucket not found" in message or ("404" in message and "bucket" in message):
+        return HTTPException(
+            status_code=503,
+            detail=(
+                f"The '{settings.PRODUCT_IMAGE_BUCKET}' storage bucket is missing. "
+                "Apply database/migrations/012_admin_dashboard_and_product_images.sql in Supabase."
+            ),
+        )
+    if any(term in message for term in ("row-level security", "unauthorized", "not authorized", "403")):
+        return HTTPException(
+            status_code=503,
+            detail=(
+                "Supabase denied the product image upload. Verify that Render's "
+                "SUPABASE_SERVICE_ROLE_KEY is a service-role key and redeploy the backend."
+            ),
+        )
+    if any(term in message for term in ("invalid api key", "invalid jwt", "apikey", "401")):
+        return HTTPException(
+            status_code=503,
+            detail="Supabase rejected the backend storage credentials. Verify the Render Supabase service-role key.",
+        )
+    if any(term in message for term in ("timed out", "timeout", "connection")):
+        return HTTPException(
+            status_code=503,
+            detail="Supabase Storage could not be reached. Check the Supabase project status and try again.",
+        )
+
+    return HTTPException(
+        status_code=502,
+        detail=(
+            "Supabase Storage could not save the image. Check the backend logs for "
+            "the product-image upload error and verify the marketplace-products bucket."
+        ),
+    )
+
+
 def _get_or_create_cart(buyer_id: str) -> dict:
     existing = supabase.table("carts").select("*").eq("buyer_id", buyer_id).limit(1).execute()
     if existing.data:
@@ -146,6 +191,20 @@ def _cart_with_items(cart_id: str) -> dict:
 def _raise_marketplace_rpc_error(exc: Exception, operation: str) -> None:
     message = str(exc)
     lowered = message.lower()
+    if (
+        "pgrst202" in lowered
+        or "could not find the function" in lowered
+        or ("schema cache" in lowered and "function" in lowered)
+    ):
+        logger.error("%s unavailable in the Supabase schema cache: %s", operation, message)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Marketplace database functions are not installed or not yet visible. "
+                "Apply database/migrations/011_buyer_marketplace_checkout.sql in Supabase, "
+                "then reload the API schema cache or restart the backend."
+            ),
+        ) from exc
     if "cart item not found" in lowered or "product not found" in lowered:
         raise HTTPException(status_code=404, detail="Cart item or product not found.") from exc
     if "not enough stock" in lowered or "no longer has enough stock" in lowered:
@@ -291,10 +350,7 @@ def upload_product_image(
             raise RuntimeError("Storage returned no public image URL.")
     except Exception as exc:
         logger.exception("Product image upload failed for seller %s", current_user["sub"])
-        raise HTTPException(
-            status_code=502,
-            detail="Could not store the product image. Check that the marketplace-products storage bucket is configured.",
-        ) from exc
+        raise _product_image_storage_failure(exc) from exc
 
     return {"image_url": image_url}
 
@@ -396,6 +452,11 @@ def add_to_cart(body: AddToCart, current_user: dict = Depends(get_current_user))
         ).execute()
     except Exception as exc:
         _raise_marketplace_rpc_error(exc, "Adding product to cart")
+    if not response.data:
+        raise HTTPException(
+            status_code=502,
+            detail="The marketplace database did not return the updated cart.",
+        )
     return _cart_with_items(str(response.data))
 
 

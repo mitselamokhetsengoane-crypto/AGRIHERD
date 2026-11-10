@@ -221,6 +221,20 @@ class TestMarketplaceBuyerRoutes(unittest.TestCase):
         )
         self.assertEqual(response.json()["item_count"], 0)
 
+    def test_add_to_cart_reports_when_checkout_migration_rpc_is_not_installed(self):
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.rpc.return_value.execute.side_effect = Exception(
+                "PGRST202: Could not find the function "
+                "public.add_marketplace_cart_item in the schema cache"
+            )
+            response = client.post(
+                "/api/v1/marketplace/cart",
+                json={"product_id": "product-id", "quantity": 1},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("011_buyer_marketplace_checkout.sql", response.json()["detail"])
+
     def test_cart_returns_buyer_items_and_calculated_totals(self):
         cart_table = mock_table([{"id": "cart-id", "buyer_id": "buyer-id"}])
         items_table = mock_table([{
@@ -363,6 +377,40 @@ class TestMarketplaceImageUpload(unittest.TestCase):
         )
         storage.upload.assert_called_once()
         self.assertEqual(storage.upload.call_args.args[2]["content-type"], "image/jpeg")
+
+    def test_missing_product_storage_bucket_has_actionable_error(self):
+        image_buffer = BytesIO()
+        Image.new("RGB", (4, 4), color="green").save(image_buffer, format="PNG")
+        image_buffer.seek(0)
+        storage = MagicMock()
+        storage.upload.side_effect = Exception("Bucket not found")
+
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.storage.from_.return_value = storage
+            response = client.post(
+                "/api/v1/marketplace/products/image",
+                files={"file": ("product.png", image_buffer, "image/png")},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("012_admin_dashboard_and_product_images.sql", response.json()["detail"])
+
+    def test_storage_permission_failure_points_to_backend_service_key(self):
+        image_buffer = BytesIO()
+        Image.new("RGB", (4, 4), color="green").save(image_buffer, format="PNG")
+        image_buffer.seek(0)
+        storage = MagicMock()
+        storage.upload.side_effect = Exception("new row violates row-level security policy")
+
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.storage.from_.return_value = storage
+            response = client.post(
+                "/api/v1/marketplace/products/image",
+                files={"file": ("product.png", image_buffer, "image/png")},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("SUPABASE_SERVICE_ROLE_KEY", response.json()["detail"])
 
 
 class TestAdminDashboardAndNotifications(unittest.TestCase):

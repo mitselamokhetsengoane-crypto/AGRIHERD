@@ -30,7 +30,11 @@ const DiseaseScanner = () => {
     setError('');
     try {
       // This calls the FastAPI backend which runs your YOLOv8 best.pt model
-      const scan = await aiService.scanImage(image, () => setWakingServer(true));
+      const scan = await aiService.scanImage(
+        image,
+        () => setWakingServer(true),
+        () => setWakingServer(true)
+      );
       if (!scan?.id) {
         setError('The scan was completed, but its saved result ID was missing.');
         return;
@@ -41,10 +45,10 @@ const DiseaseScanner = () => {
       const detail = err.response?.data?.detail;
       const status = err.response?.status;
 
-      if (status === 503) {
-        setError('The AI service is currently waking up from sleep mode. Please wait 1-2 minutes and click "Try again".');
-      } else if (typeof detail === 'string') {
+      if (typeof detail === 'string' && detail.trim()) {
         setError(detail);
+      } else if (status === 503) {
+        setError('The AI service is currently waking up from sleep mode. Please wait 1-2 minutes and click "Try again".');
       } else if (status === 401) {
         setError('Your session has expired. Please log in again before scanning.');
       } else if (err.response) {

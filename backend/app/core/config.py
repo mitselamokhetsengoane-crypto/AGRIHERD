@@ -37,9 +37,9 @@ class Settings:
     # AI_SERVICE_URL=http://127.0.0.1:8001 and AI_SERVICE_TOKEN in your .env.
     AI_SERVICE_URL: str = _env("AI_SERVICE_URL")
     AI_SERVICE_TOKEN: str = _env("AI_SERVICE_TOKEN")
-    AI_CONNECT_TIMEOUT: float = _float("AI_CONNECT_TIMEOUT", 10.0)
-    AI_READ_TIMEOUT: float = _float("AI_READ_TIMEOUT", 45.0)     # first request may include loading the model
-    AI_WAKE_SECONDS: float = _float("AI_WAKE_SECONDS", 35.0)     # how long to wait for a sleeping AI service
+    AI_CONNECT_TIMEOUT: float = _float("AI_CONNECT_TIMEOUT", 15.0)
+    AI_READ_TIMEOUT: float = _float("AI_READ_TIMEOUT", 60.0)     # first request may include loading the model
+    AI_WAKE_SECONDS: float = _float("AI_WAKE_SECONDS", 60.0)     # how long to wait for a sleeping AI service
 
     # ---- Scan image storage ----------------------------------------------------------------------------------------
     SUPABASE_SCAN_BUCKET: str = _env("SUPABASE_SCAN_BUCKET", "disease-scans")
