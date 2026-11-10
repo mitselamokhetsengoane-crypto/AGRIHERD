@@ -10,11 +10,12 @@ const BuyerLayout = () => {
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
+  // FIXED: All paths now correctly point to the /buyer/ prefix
   const navItems = [
     { name: 'Dashboard', path: '/buyer/dashboard' },
-    { name: 'Marketplace', path: '/marketplace' },
-    { name: 'My Cart', path: '/marketplace/cart' },
-    { name: 'My Orders', path: '/marketplace/orders' },
+    { name: 'Marketplace', path: '/buyer/marketplace' },
+    { name: 'My Cart', path: '/buyer/marketplace/cart' },
+    { name: 'My Orders', path: '/buyer/marketplace/orders' },
   ];
 
   return (
@@ -82,7 +83,7 @@ const BuyerLayout = () => {
             <h1 className="text-xl font-bold text-primary">Buyer Dashboard</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <Link to="/profile" className="flex items-center space-x-2">
+            <Link to="/buyer/profile" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold text-sm">
                 {user?.full_name?.charAt(0) || 'B'}
               </div>
