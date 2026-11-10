@@ -25,8 +25,16 @@ const cropService = {
     const response = await api.get(`/crops/${cropId}/harvests`);
     return response.data;
   },
+  addHarvestRecord: async (cropId, data) => {
+    const response = await api.post(`/crops/${cropId}/harvests`, data);
+    return response.data;
+  },
   getPlantingRecords: async (cropId) => {
     const response = await api.get(`/crops/${cropId}/plantings`);
+    return response.data;
+  },
+  addPlantingRecord: async (cropId, data) => {
+    const response = await api.post(`/crops/${cropId}/plantings`, data);
     return response.data;
   },
 };

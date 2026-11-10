@@ -1,9 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from typing import Optional
 from app.core.permissions import get_current_user
 from app.database.connection import supabase
 from app.services.audit_service import AuditService
 
 router = APIRouter()
+
+class PlantingCreate(BaseModel):
+    planting_date: str
+    seed_type: Optional[str] = None
+    quantity_used: Optional[float] = None
+    notes: Optional[str] = None
+
+class HarvestCreate(BaseModel):
+    harvest_date: str
+    quantity: float
+    unit: Optional[str] = None
+    quality: Optional[str] = None
+    notes: Optional[str] = None
 
 
 def _verify_crop_ownership(crop_id: str, user_id: str):
@@ -55,6 +70,7 @@ def delete_crop(crop_id: str, current_user: dict = Depends(get_current_user)):
     return {"message": "Crop deleted"}
 
 
+# --- PLANTING RECORDS ---
 @router.get("/{crop_id}/plantings")
 def get_plantings(crop_id: str, current_user: dict = Depends(get_current_user)):
     _verify_crop_ownership(crop_id, current_user["sub"])
@@ -67,7 +83,16 @@ def get_plantings(crop_id: str, current_user: dict = Depends(get_current_user)):
     )
     return response.data or []
 
+@router.post("/{crop_id}/plantings")
+def add_planting(crop_id: str, data: PlantingCreate, current_user: dict = Depends(get_current_user)):
+    _verify_crop_ownership(crop_id, current_user["sub"])
+    row = data.dict(exclude_none=True)
+    row["crop_id"] = crop_id
+    response = supabase.table("planting_records").insert(row).execute()
+    return response.data[0]
 
+
+# --- HARVEST RECORDS ---
 @router.get("/{crop_id}/harvests")
 def get_harvests(crop_id: str, current_user: dict = Depends(get_current_user)):
     _verify_crop_ownership(crop_id, current_user["sub"])
@@ -79,3 +104,11 @@ def get_harvests(crop_id: str, current_user: dict = Depends(get_current_user)):
         .execute()
     )
     return response.data or []
+
+@router.post("/{crop_id}/harvests")
+def add_harvest(crop_id: str, data: HarvestCreate, current_user: dict = Depends(get_current_user)):
+    _verify_crop_ownership(crop_id, current_user["sub"])
+    row = data.dict(exclude_none=True)
+    row["crop_id"] = crop_id
+    response = supabase.table("harvest_records").insert(row).execute()
+    return response.data[0]
