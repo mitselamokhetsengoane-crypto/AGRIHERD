@@ -10,21 +10,18 @@ logger = logging.getLogger("agriherd")
 
 api = FastAPI(title="AgriHerd API", version="1.0.0")
 
-_default_origins = "https://agriherd-1.onrender.com,http://localhost:5173,http://localhost:3000"
-ORIGINS = [
-    o.strip().rstrip("/")
-    for o in os.getenv("CORS_ORIGINS", _default_origins).split(",")
-    if o.strip()
-]
+_default_origins = {
+    "https://agriherd-1.onrender.com",
+    "http://localhost:5173",
+    "http://localhost:3000",
+}
+_configured_origins = {
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+}
+ORIGINS = sorted(_default_origins | _configured_origins)
 
-api.add_middleware(
-    CORSMiddleware,
-    allow_origins=ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    max_age=600,
-)
 api.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
@@ -75,4 +72,11 @@ def health():
     return {"status": "ok"}
 
 
-app = api
+app = CORSMiddleware(
+    app=api,
+    allow_origins=ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    max_age=600,
+)

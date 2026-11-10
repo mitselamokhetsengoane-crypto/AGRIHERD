@@ -101,6 +101,22 @@ class TestMissingApiRoutes(unittest.TestCase):
             "https://agriherd-1.onrender.com",
         )
 
+    def test_cors_preflight_allows_production_frontend(self):
+        response = client.options(
+            "/api/v1/crops/crop-id/plantings",
+            headers={
+                "Origin": "https://agriherd-1.onrender.com",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "authorization,content-type",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.headers["access-control-allow-origin"],
+            "https://agriherd-1.onrender.com",
+        )
+
 
 class TestLivestockRecordRoutes(unittest.TestCase):
     def setUp(self):
@@ -197,4 +213,62 @@ class TestLivestockRecordRoutes(unittest.TestCase):
             "breeding_date": "2026-11-10",
             "outcome": "Pregnant",
             "animal_id": "animal-id",
+        })
+
+
+class TestCropRecordRoutes(unittest.TestCase):
+    def setUp(self):
+        api.dependency_overrides[get_current_user] = lambda: {"sub": "user-id"}
+
+    def tearDown(self):
+        api.dependency_overrides.pop(get_current_user, None)
+
+    def test_planting_record_is_saved(self):
+        tables = {
+            "crops": mock_table([{"id": "crop-id"}]),
+            "planting_records": mock_table([{"id": "record-id", "crop_id": "crop-id"}]),
+        }
+        with patch("app.api.v1.crops.supabase") as supabase_mock:
+            supabase_mock.table.side_effect = tables.get
+            response = client.post(
+                "/api/v1/crops/crop-id/plantings",
+                json={
+                    "planting_date": "2026-11-10",
+                    "seed_type": "Maize",
+                    "quantity_used": 3.5,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        tables["planting_records"].insert.assert_called_once_with({
+            "planting_date": "2026-11-10",
+            "seed_type": "Maize",
+            "quantity_used": 3.5,
+            "crop_id": "crop-id",
+        })
+
+    def test_harvest_record_is_saved(self):
+        tables = {
+            "crops": mock_table([{"id": "crop-id"}]),
+            "harvest_records": mock_table([{"id": "record-id", "crop_id": "crop-id"}]),
+        }
+        with patch("app.api.v1.crops.supabase") as supabase_mock:
+            supabase_mock.table.side_effect = tables.get
+            response = client.post(
+                "/api/v1/crops/crop-id/harvests",
+                json={
+                    "harvest_date": "2026-11-10",
+                    "quantity": 50,
+                    "unit": "kg",
+                    "quality": "Good",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        tables["harvest_records"].insert.assert_called_once_with({
+            "harvest_date": "2026-11-10",
+            "quantity": 50,
+            "unit": "kg",
+            "quality": "Good",
+            "crop_id": "crop-id",
         })

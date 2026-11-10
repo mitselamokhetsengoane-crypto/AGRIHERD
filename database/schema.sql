@@ -372,6 +372,8 @@ ALTER TABLE public.vaccination_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feeding_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.breeding_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.crops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.planting_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.harvest_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
@@ -441,6 +443,30 @@ WITH CHECK (EXISTS (
 
 -- Crops: users can only access their own crops
 CREATE POLICY "Users can access own crops" ON public.crops FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can access own planting records" ON public.planting_records FOR ALL
+USING (EXISTS (
+    SELECT 1 FROM public.crops
+    WHERE crops.id = planting_records.crop_id
+      AND crops.user_id = auth.uid()
+))
+WITH CHECK (EXISTS (
+    SELECT 1 FROM public.crops
+    WHERE crops.id = planting_records.crop_id
+      AND crops.user_id = auth.uid()
+));
+
+CREATE POLICY "Users can access own harvest records" ON public.harvest_records FOR ALL
+USING (EXISTS (
+    SELECT 1 FROM public.crops
+    WHERE crops.id = harvest_records.crop_id
+      AND crops.user_id = auth.uid()
+))
+WITH CHECK (EXISTS (
+    SELECT 1 FROM public.crops
+    WHERE crops.id = harvest_records.crop_id
+      AND crops.user_id = auth.uid()
+));
 
 -- Tasks: users can only access their own tasks
 CREATE POLICY "Users can access own tasks" ON public.tasks FOR ALL USING (auth.uid() = user_id);

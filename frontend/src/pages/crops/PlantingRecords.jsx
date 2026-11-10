@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import cropService from '../../services/cropService';
+import { getErrorMessage } from '../../services/api';
 import { formatDate } from '../../utils/formatters';
 
 const PlantingRecords = () => {
@@ -36,7 +37,7 @@ const PlantingRecords = () => {
       setForm({ planting_date: '', seed_type: '', quantity_used: '', notes: '' });
       await fetchRecords();
     } catch (error) {
-      alert("Failed to save planting record.");
+      alert(getErrorMessage(error, "Failed to save planting record."));
     } finally {
       setSaving(false);
     }
