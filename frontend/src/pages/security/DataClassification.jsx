@@ -1,25 +1,53 @@
+import { useEffect, useState } from 'react';
+import securityService from '../../services/securityService';
+
 const DataClassification = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setData(await securityService.getDataClassification());
+      } catch (err) {
+        setError(err.response?.data?.detail || 'Could not load classification.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  if (loading) return <div className="p-8 text-center text-gray-500">Loading classification...</div>;
+  if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
+
+  const classes = [
+    { key: 'public', label: 'Public Data', color: 'text-green-700' },
+    { key: 'private', label: 'Private Data', color: 'text-yellow-600' },
+    { key: 'confidential', label: 'Confidential Data', color: 'text-orange-600' },
+    { key: 'restricted', label: 'Restricted Data', color: 'text-red-600' },
+  ];
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">Data Classification</h1>
-      
+      <div>
+        <h1 className="text-2xl font-bold text-gray-800">Data Classification</h1>
+        <p className="text-gray-500 mt-1">How information is classified across the platform. Loaded from the database.</p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-green-700 mb-2">Public Data</h3>
-          <p className="text-gray-600 text-sm">Marketplace listings, product prices, farm names.</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-yellow-600 mb-2">Private Data</h3>
-          <p className="text-gray-600 text-sm">User profiles, farm locations, contact details.</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-orange-600 mb-2">Confidential Data</h3>
-          <p className="text-gray-600 text-sm">Crop yields, livestock health, AI scan results.</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-red-600 mb-2">Restricted Data</h3>
-          <p className="text-gray-600 text-sm">Financial transactions, passwords, blockchain keys.</p>
-        </div>
+        {classes.map((c) => (
+          <div key={c.key} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h3 className={`text-lg font-semibold ${c.color} mb-2`}>{c.label}</h3>
+            {(data?.[c.key] || []).map((row) => (
+              <p key={row.id} className="text-gray-600 text-sm">{row.items}</p>
+            ))}
+            {(data?.[c.key] || []).length === 0 && (
+              <p className="text-gray-400 text-sm">No items recorded.</p>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

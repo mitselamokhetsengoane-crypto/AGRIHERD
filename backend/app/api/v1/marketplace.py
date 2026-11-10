@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,6 +8,8 @@ from pydantic import BaseModel
 
 from app.core.permissions import get_current_user
 from app.database.connection import supabase
+from app.services.income_service import IncomeService
+from app.services.blockchain_trigger import record_order_on_chain
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -15,7 +18,6 @@ VALID_ORDER_STATUSES = {
     "PENDING", "ACCEPTED", "REJECTED", "PREPARING", "READY", "COMPLETED", "CANCELLED",
 }
 
-# Valid transitions — enforce business rules
 VALID_TRANSITIONS = {
     "PENDING": {"ACCEPTED", "REJECTED", "CANCELLED"},
     "ACCEPTED": {"PREPARING", "CANCELLED"},
@@ -26,8 +28,6 @@ VALID_TRANSITIONS = {
     "CANCELLED": set(),
 }
 
-
-# ---------- request bodies ----------
 
 class AddToCart(BaseModel):
     product_id: str
@@ -53,7 +53,7 @@ class OrderStatusUpdate(BaseModel):
 class ProductCreate(BaseModel):
     name: str
     category_id: Optional[str] = None
-    category: Optional[str] = None  # legacy
+    category: Optional[str] = None
     description: Optional[str] = None
     price: float
     quantity_available: float
@@ -65,8 +65,6 @@ class CategoryCreate(BaseModel):
     name: str
     parent_id: Optional[str] = None
 
-
-# ---------- helpers ----------
 
 def _require_buyer(user: dict) -> None:
     if user.get("role") != "buyer":
@@ -126,25 +124,15 @@ def _cart_with_items(cart_id: str) -> dict:
     return {"id": cart_id, "items": enriched, "total": total}
 
 
-# ---------- categories ----------
-
 @router.get("/categories")
 def list_categories():
-    response = (
-        supabase.table("marketplace_categories")
-        .select("*")
-        .eq("is_active", True)
-        .order("name")
-        .execute()
-    )
-    return response.data or []
+    return supabase.table("marketplace_categories").select("*").eq("is_active", True).order("name").execute().data or []
 
 
 @router.get("/categories/all")
 def list_all_categories(current_user: dict = Depends(get_current_user)):
     _require_admin(current_user)
-    response = supabase.table("marketplace_categories").select("*").order("name").execute()
-    return response.data or []
+    return supabase.table("marketplace_categories").select("*").order("name").execute().data or []
 
 
 @router.post("/categories")
@@ -155,8 +143,7 @@ def create_category(body: CategoryCreate, current_user: dict = Depends(get_curre
         raise HTTPException(status_code=400, detail="Category name is required.")
     try:
         response = supabase.table("marketplace_categories").insert({
-            "name": name,
-            "parent_id": body.parent_id,
+            "name": name, "parent_id": body.parent_id,
         }).execute()
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Could not create category: {exc}")
@@ -166,20 +153,16 @@ def create_category(body: CategoryCreate, current_user: dict = Depends(get_curre
 @router.delete("/categories/{category_id}")
 def delete_category(category_id: str, current_user: dict = Depends(get_current_user)):
     _require_admin(current_user)
-    # Deactivate rather than delete — products may reference this category
     supabase.table("marketplace_categories").update({"is_active": False}).eq("id", category_id).execute()
     return {"message": "Category deactivated"}
 
-
-# ---------- products ----------
 
 @router.get("/products")
 def get_products(category_id: Optional[str] = None):
     q = supabase.table("marketplace_products").select("*").eq("status", "Available")
     if category_id:
         q = q.eq("category_id", category_id)
-    response = q.execute()
-    return response.data or []
+    return q.execute().data or []
 
 
 @router.get("/products/{product_id}")
@@ -193,14 +176,14 @@ def get_product(product_id: str):
 @router.get("/listings/mine")
 def get_my_listings(current_user: dict = Depends(get_current_user)):
     _require_seller_or_admin(current_user)
-    response = (
+    return (
         supabase.table("marketplace_products")
         .select("*")
         .eq("seller_id", current_user["sub"])
         .order("created_at", desc=True)
         .execute()
+        .data or []
     )
-    return response.data or []
 
 
 @router.post("/products")
@@ -222,9 +205,8 @@ def create_product(body: ProductCreate, current_user: dict = Depends(get_current
         "image_url": body.image_url,
         "status": "Available",
     }
-    # Look up legacy category string from the parent category for backward compat
     if body.category_id:
-        cat = supabase.table("marketplace_categories").select("name,parent_id").eq("id", body.category_id).limit(1).execute()
+        cat = supabase.table("marketplace_categories").select("name").eq("id", body.category_id).limit(1).execute()
         if cat.data:
             row["category"] = cat.data[0]["name"]
 
@@ -243,7 +225,7 @@ def update_product(product_id: str, body: ProductCreate, current_user: dict = De
     if current_user.get("role") != "admin" and existing.data[0]["seller_id"] != current_user["sub"]:
         raise HTTPException(status_code=403, detail="You can only edit your own listings.")
 
-    updates = {
+    response = supabase.table("marketplace_products").update({
         "name": body.name.strip(),
         "category_id": body.category_id,
         "description": body.description,
@@ -251,8 +233,7 @@ def update_product(product_id: str, body: ProductCreate, current_user: dict = De
         "quantity_available": body.quantity_available,
         "unit": body.unit,
         "image_url": body.image_url,
-    }
-    response = supabase.table("marketplace_products").update(updates).eq("id", product_id).execute()
+    }).eq("id", product_id).execute()
     return response.data[0] if response.data else existing.data[0]
 
 
@@ -264,12 +245,9 @@ def deactivate_product(product_id: str, current_user: dict = Depends(get_current
         raise HTTPException(status_code=404, detail="Listing not found.")
     if current_user.get("role") != "admin" and existing.data[0]["seller_id"] != current_user["sub"]:
         raise HTTPException(status_code=403, detail="You can only deactivate your own listings.")
-
     supabase.table("marketplace_products").update({"status": "Inactive"}).eq("id", product_id).execute()
     return {"message": "Listing deactivated"}
 
-
-# ---------- cart ----------
 
 @router.get("/cart")
 def get_cart(current_user: dict = Depends(get_current_user)):
@@ -283,7 +261,6 @@ def add_to_cart(body: AddToCart, current_user: dict = Depends(get_current_user))
     _require_buyer(current_user)
     if body.quantity <= 0:
         raise HTTPException(status_code=400, detail="Quantity must be greater than zero.")
-
     product_resp = supabase.table("marketplace_products").select("*").eq("id", body.product_id).limit(1).execute()
     if not product_resp.data:
         raise HTTPException(status_code=404, detail="Product not found.")
@@ -294,11 +271,7 @@ def add_to_cart(body: AddToCart, current_user: dict = Depends(get_current_user))
         raise HTTPException(status_code=400, detail="Not enough stock available.")
 
     cart = _get_or_create_cart(current_user["sub"])
-
-    existing = (
-        supabase.table("cart_items").select("*")
-        .eq("cart_id", cart["id"]).eq("product_id", body.product_id).limit(1).execute()
-    )
+    existing = supabase.table("cart_items").select("*").eq("cart_id", cart["id"]).eq("product_id", body.product_id).limit(1).execute()
     if existing.data:
         new_qty = float(existing.data[0]["quantity"]) + body.quantity
         if new_qty > float(product.get("quantity_available") or 0):
@@ -308,7 +281,6 @@ def add_to_cart(body: AddToCart, current_user: dict = Depends(get_current_user))
         supabase.table("cart_items").insert({
             "cart_id": cart["id"], "product_id": body.product_id, "quantity": body.quantity,
         }).execute()
-
     return _cart_with_items(cart["id"])
 
 
@@ -321,12 +293,10 @@ def update_cart_item(item_id: str, body: UpdateCartItem, current_user: dict = De
     item_resp = supabase.table("cart_items").select("*").eq("id", item_id).eq("cart_id", cart["id"]).limit(1).execute()
     if not item_resp.data:
         raise HTTPException(status_code=404, detail="Cart item not found.")
-
     product_resp = supabase.table("marketplace_products").select("quantity_available").eq("id", item_resp.data[0]["product_id"]).limit(1).execute()
     available = float((product_resp.data[0] if product_resp.data else {}).get("quantity_available") or 0)
     if body.quantity > available:
         raise HTTPException(status_code=400, detail="Not enough stock available.")
-
     supabase.table("cart_items").update({"quantity": body.quantity}).eq("id", item_id).execute()
     return _cart_with_items(cart["id"])
 
@@ -339,8 +309,6 @@ def remove_cart_item(item_id: str, current_user: dict = Depends(get_current_user
     return _cart_with_items(cart["id"])
 
 
-# ---------- checkout ----------
-
 @router.post("/checkout")
 def checkout(body: CheckoutBody, current_user: dict = Depends(get_current_user)):
     _require_buyer(current_user)
@@ -352,7 +320,7 @@ def checkout(body: CheckoutBody, current_user: dict = Depends(get_current_user))
     if not cart_data["items"]:
         raise HTTPException(status_code=400, detail="Your cart is empty.")
 
-    by_seller: dict[str, list] = {}
+    by_seller: dict = {}
     for item in cart_data["items"]:
         by_seller.setdefault(item["product"]["seller_id"], []).append(item)
 
@@ -365,14 +333,21 @@ def checkout(body: CheckoutBody, current_user: dict = Depends(get_current_user))
         try:
             for item in items:
                 pid = item["product"]["id"]
-                qty = item["quantity"]
-                prod = supabase.table("marketplace_products").select("quantity_available").eq("id", pid).limit(1).execute()
-                if not prod.data:
-                    raise HTTPException(status_code=400, detail=f"Product {pid} no longer exists.")
-                current_avail = float(prod.data[0]["quantity_available"] or 0)
-                if current_avail < qty:
-                    raise HTTPException(status_code=400, detail=f"Not enough stock for {item['product']['name']}.")
-                supabase.table("marketplace_products").update({"quantity_available": current_avail - qty}).eq("id", pid).execute()
+                qty = float(item["quantity"])
+                # Atomic conditional stock deduction using a filter.
+                # The .gte filter means the UPDATE only succeeds if enough stock exists.
+                upd = (
+                    supabase.table("marketplace_products")
+                    .update({"quantity_available": f"GREATEST(0, quantity_available - {qty})"})
+                    .eq("id", pid)
+                    .gte("quantity_available", qty)
+                    .execute()
+                )
+                if not upd.data:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Not enough stock for {item['product']['name']}.",
+                    )
                 deducted.append((pid, qty))
 
             order_resp = supabase.table("orders").insert({
@@ -412,14 +387,18 @@ def checkout(body: CheckoutBody, current_user: dict = Depends(get_current_user))
             for pid, q in deducted:
                 p = supabase.table("marketplace_products").select("quantity_available").eq("id", pid).limit(1).execute()
                 if p.data:
-                    supabase.table("marketplace_products").update({"quantity_available": float(p.data[0]["quantity_available"] or 0) + q}).eq("id", pid).execute()
+                    supabase.table("marketplace_products").update({
+                        "quantity_available": float(p.data[0]["quantity_available"] or 0) + q,
+                    }).eq("id", pid).execute()
             raise
         except Exception as exc:
             logger.exception("Checkout failed")
             for pid, q in deducted:
                 p = supabase.table("marketplace_products").select("quantity_available").eq("id", pid).limit(1).execute()
                 if p.data:
-                    supabase.table("marketplace_products").update({"quantity_available": float(p.data[0]["quantity_available"] or 0) + q}).eq("id", pid).execute()
+                    supabase.table("marketplace_products").update({
+                        "quantity_available": float(p.data[0]["quantity_available"] or 0) + q,
+                    }).eq("id", pid).execute()
             raise HTTPException(status_code=500, detail="Checkout failed.") from exc
 
     supabase.table("cart_items").delete().eq("cart_id", cart["id"]).execute()
@@ -430,8 +409,6 @@ def checkout(body: CheckoutBody, current_user: dict = Depends(get_current_user))
         "is_simulated": body.payment_method != "CASH",
     }
 
-
-# ---------- orders ----------
 
 @router.get("/orders")
 def get_orders(current_user: dict = Depends(get_current_user)):
@@ -445,8 +422,7 @@ def get_orders(current_user: dict = Depends(get_current_user)):
         q = supabase.table("orders").select("*").eq("buyer_id", uid)
     else:
         raise HTTPException(status_code=403, detail="Not authorized.")
-    response = q.order("created_at", desc=True).execute()
-    return response.data or []
+    return q.order("created_at", desc=True).execute().data or []
 
 
 @router.get("/orders/{order_id}")
@@ -468,10 +444,12 @@ def get_order(order_id: str, current_user: dict = Depends(get_current_user)):
 
     items = supabase.table("order_items").select("*").eq("order_id", order_id).execute()
     payment = supabase.table("payments").select("*").eq("order_id", order_id).limit(1).execute()
+    blockchain = supabase.table("blockchain_records").select("*").eq("order_id", order_id).limit(1).execute()
     return {
         "order": order,
         "items": items.data or [],
         "payment": payment.data[0] if payment.data else None,
+        "blockchain": blockchain.data[0] if blockchain.data else None,
     }
 
 
@@ -496,8 +474,14 @@ def update_order_status(order_id: str, body: OrderStatusUpdate, current_user: di
             detail=f"Cannot transition from {current_status} to {body.status}.",
         )
 
-    supabase.table("orders").update({"status": body.status}).eq("id", order_id).execute()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    update_row = {"status": body.status, "status_updated_at": now_iso}
+    if body.status == "COMPLETED":
+        update_row["completed_at"] = now_iso
 
+    supabase.table("orders").update(update_row).eq("id", order_id).execute()
+
+    # Restore stock on rejection/cancellation
     if body.status in ("CANCELLED", "REJECTED") and current_status not in ("CANCELLED", "REJECTED"):
         for item in supabase.table("order_items").select("*").eq("order_id", order_id).execute().data or []:
             p = supabase.table("marketplace_products").select("quantity_available").eq("id", item["product_id"]).limit(1).execute()
@@ -506,16 +490,41 @@ def update_order_status(order_id: str, body: OrderStatusUpdate, current_user: di
                     "quantity_available": float(p.data[0]["quantity_available"] or 0) + float(item["quantity"]),
                 }).eq("id", item["product_id"]).execute()
 
+    # Notify the buyer on any change
+    try:
+        supabase.table("notifications").insert({
+            "user_id": order["buyer_id"],
+            "title": f"Order {body.status.title()}",
+            "message": f"Your order #{order_id[:8]} is now {body.status}.",
+            "category": "ORDER",
+        }).execute()
+    except Exception as exc:
+        logger.error(f"Buyer notification failed: {exc}")
+
+    # On completion: mark cash as PAID first, THEN record income and submit to chain.
+    if body.status == "COMPLETED":
+        payment_resp = supabase.table("payments").select("*").eq("order_id", order_id).limit(1).execute()
+        if payment_resp.data:
+            payment = payment_resp.data[0]
+            if payment.get("method") == "CASH" and payment.get("status") == "PENDING":
+                supabase.table("payments").update({
+                    "status": "PAID",
+                    "confirmed_at": now_iso,
+                }).eq("order_id", order_id).execute()
+
+        IncomeService.record_marketplace_income(order_id)
+        try:
+            record_order_on_chain(order_id)
+        except Exception as exc:
+            logger.error(f"Blockchain trigger raised: {exc}")
+
     return {"message": "Order status updated", "status": body.status}
 
-
-# ---------- admin monitor ----------
 
 @router.get("/admin/listings")
 def admin_all_listings(current_user: dict = Depends(get_current_user)):
     _require_admin(current_user)
-    response = supabase.table("marketplace_products").select("*").order("created_at", desc=True).execute()
-    return response.data or []
+    return supabase.table("marketplace_products").select("*").order("created_at", desc=True).execute().data or []
 
 
 @router.patch("/admin/products/{product_id}/deactivate")

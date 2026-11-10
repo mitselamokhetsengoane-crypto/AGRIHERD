@@ -17,18 +17,12 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const data = await authService.login(email, password);
       login(data.user, data.access_token);
-
-      if (data.user.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else if (data.user.role === 'buyer') {
-        navigate('/buyer/dashboard');
-      } else {
-        navigate('/app/dashboard');
-      }
+      if (data.user.role === 'admin') navigate('/admin/dashboard');
+      else if (data.user.role === 'buyer') navigate('/buyer/dashboard');
+      else navigate('/app/dashboard');
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid email or password.');
     } finally {
@@ -37,55 +31,67 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F9F5] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <img src="/logo.jpeg" alt="AgriHerd" className="w-16 h-16 rounded-full object-cover mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-[#1B1B1B]">Welcome Back</h1>
-          <p className="text-[#6B7280] mt-2">Sign in to continue</p>
+    <div className="auth-shell">
+      <div className="auth-card">
+        <div className="auth-header">
+          <img src="/logo.jpeg" alt="AgriHerd" className="auth-logo" />
+          <h1 className="auth-title">Welcome back</h1>
+          <p className="auth-subtitle">Sign in to manage your farm</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          {error && (
-            <div className="mb-5 bg-red-50 border border-red-100 text-[#D32F2F] text-sm rounded-lg px-4 py-3 text-center">
-              {error}
+        {error && <div className="alert alert--error" role="alert">{error}</div>}
+
+        <form onSubmit={handleSubmit} className="form" style={{ marginTop: error ? '16px' : '0' }}>
+          <div className="form__field">
+            <label htmlFor="login-email" className="form__label form__label--required">Email</label>
+            <input
+              id="login-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="form__input"
+            />
+          </div>
+
+          <div className="form__field">
+            <div className="row row--between">
+              <label htmlFor="login-password" className="form__label form__label--required">Password</label>
+              <Link to="/forgot-password" className="text-small">Forgot?</Link>
             </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-[#1B1B1B] mb-1.5">Email</label>
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-[#FAFCFA] focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32]" />
+            <div style={{ position: 'relative' }}>
+              <input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="form__input"
+                style={{ paddingRight: '64px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="btn btn--ghost btn--sm"
+                style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)' }}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
             </div>
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-[#1B1B1B]">Password</label>
-                <Link to="/forgot-password" className="text-sm text-[#2E7D32] hover:underline">Forgot Password?</Link>
-              </div>
-              <div className="relative">
-                <input type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password"
-                  className="w-full px-4 py-3 pr-14 rounded-xl border border-gray-200 bg-[#FAFCFA] focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32]" />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[#6B7280] hover:text-[#2E7D32] font-medium">
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
-              </div>
-            </div>
+          </div>
 
-            <button type="submit" disabled={loading}
-              className="w-full bg-[#2E7D32] hover:bg-[#1B5E20] text-white font-semibold py-3.5 rounded-xl transition disabled:opacity-60">
-              {loading ? 'Logging in...' : 'Log In'}
-            </button>
-          </form>
+          <button type="submit" disabled={loading} className="btn btn--primary btn--block">
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
 
-          <p className="text-center text-sm text-[#6B7280] mt-8">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-[#2E7D32] font-medium hover:underline">Create Account</Link>
-          </p>
-        </div>
+        <p className="auth-footer-link">
+          Don&apos;t have an account? <Link to="/register">Create one</Link>
+        </p>
 
-        <div className="mt-6 flex justify-center">
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
           <BackButton />
         </div>
       </div>

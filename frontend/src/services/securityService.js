@@ -1,35 +1,30 @@
 import api from './api';
 
 const securityService = {
-  getAuditLogs: async () => {
-    const response = await api.get('/security/audit-logs');
-    return response.data;
-  },
+  getOverview: async () => (await api.get('/security/overview')).data,
+  getAuditLogs: async () => (await api.get('/security/audit-logs')).data,
+  getRolePermissions: async () => (await api.get('/security/role-permissions')).data,
+  getDataClassification: async () => (await api.get('/security/data-classification')).data,
+  getSystemSettings: async () => (await api.get('/security/system-settings')).data,
+  updateSystemSetting: async (key, value) =>
+    (await api.patch(`/security/system-settings/${key}`, { setting_value: value })).data,
+  getFarms: async () => (await api.get('/security/farms')).data,
 
-  getRoles: async () => {
-    const response = await api.get('/security/roles');
-    return response.data;
-  },
+  // User management now lives on the admin router (real endpoints)
+  getUsers: async (params = {}) => (await api.get('/admin/users', { params })).data,
+  updateUserStatus: async (userId, account_status) =>
+    (await api.patch(`/admin/users/${userId}/status`, { account_status })).data,
+  approveFarmer: async (userId) => (await api.patch(`/admin/users/${userId}/approve`)).data,
 
-  updatePermissions: async (roleId, permissions) => {
-    const response = await api.put(`/security/roles/${roleId}`, { permissions });
-    return response.data;
-  },
-
-  getUsers: async () => {
-    const response = await api.get('/security/users');
-    return response.data;
-  },
-
-  getFarms: async () => {
-    const response = await api.get('/security/farms');
-    return response.data;
-  },
-
+  // Kept for compatibility — no backend endpoint for role change yet
   updateUserRole: async (userId, role) => {
-    const response = await api.put(`/security/users/${userId}/role`, { role });
-    return response.data;
+    throw new Error('Role changes are not supported. Contact a database administrator.');
   },
+
+  // Admin monitoring
+  getAdminAISummary: async () => (await api.get('/admin/ai/summary')).data,
+  getAdminBlockchain: async () => (await api.get('/admin/blockchain/all')).data,
+  getAdminAuditLogs: async () => (await api.get('/admin/audit-logs')).data,
 };
 
 export default securityService;

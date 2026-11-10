@@ -26,7 +26,7 @@ const OrderDetails = () => {
   if (error) return <div className="p-8 text-center text-error">{error}</div>;
   if (!data) return null;
 
-  const { order, items, payment } = data;
+  const { order, items, payment, blockchain } = data;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -74,6 +74,16 @@ const OrderDetails = () => {
             {payment.is_simulated && (
               <p className="mt-2 text-xs text-error font-medium">Demonstration payment — no real money was transferred.</p>
             )}
+          </div>
+        )}
+
+        {blockchain && (
+          <div className="border-t mt-4 pt-4">
+            <h3 className="font-semibold mb-2">Blockchain Verification</h3>
+            <p className="text-sm">Status: <span className="font-medium text-green-700">Recorded on chain</span></p>
+            <p className="text-xs text-subtext mt-1 break-all">Transaction: {blockchain.transaction_hash}</p>
+            <p className="text-xs text-subtext">Block: {blockchain.block_number}</p>
+            <p className="text-xs text-subtext">Record hash: {blockchain.record_hash?.slice(0, 32)}…</p>
           </div>
         )}
       </div>

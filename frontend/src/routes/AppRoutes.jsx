@@ -4,13 +4,12 @@ import AdminLayout from '../layouts/AdminLayout';
 import BuyerLayout from '../layouts/BuyerLayout';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 
-// Public
 import Welcome from '../pages/auth/Welcome';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import ForgotPassword from '../pages/auth/ForgotPassword';
+import PrivacyPolicy from '../pages/auth/PrivacyPolicy';
 
-// Farmer
 import Dashboard from '../pages/dashboard/Dashboard';
 import Crops from '../pages/crops/Crops';
 import AddCrop from '../pages/crops/AddCrop';
@@ -43,7 +42,6 @@ import TaskDetails from '../pages/tasks/TaskDetails';
 import Notifications from '../pages/notifications/Notifications';
 import Profile from '../pages/profile/Profile';
 
-// Marketplace
 import Marketplace from '../pages/marketplace/Marketplace';
 import ProductDetails from '../pages/marketplace/ProductDetails';
 import Cart from '../pages/marketplace/Cart';
@@ -54,11 +52,10 @@ import OrderDetails from '../pages/marketplace/OrderDetails';
 import MyListings from '../pages/marketplace/MyListings';
 import AddListing from '../pages/marketplace/AddListing';
 import OrdersReceived from '../pages/marketplace/OrdersReceived';
+import Categories from '../pages/marketplace/Categories';
 
-// Buyer
 import BuyerDashboard from '../pages/buyer/BuyerDashboard';
 
-// Admin
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import FarmManagement from '../pages/admin/FarmManagement';
 import MarketplaceMonitor from '../pages/admin/MarketplaceMonitor';
@@ -67,7 +64,6 @@ import RolesPermissions from '../pages/security/RolesPermissions';
 import DataClassification from '../pages/security/DataClassification';
 import AuditLogs from '../pages/security/AuditLogs';
 import SecuritySettings from '../pages/security/SecuritySettings';
-import Categories from '../pages/marketplace/Categories';
 
 const LegacyAppRedirect = () => {
   const { pathname, search, hash } = useLocation();
@@ -82,9 +78,10 @@ const AppRoutes = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/signup" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
-      {/* ===== FARMER ===== */}
-      <Route element={<ProtectedRoute allowedRoles={['farmer', 'worker']} />}>
+      {/* FARMER ONLY */}
+      <Route element={<ProtectedRoute allowedRoles={['farmer']} />}>
         <Route path="/app" element={<MainLayout />}>
           <Route index element={<Navigate to="/app/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
@@ -128,7 +125,7 @@ const AppRoutes = () => {
         <Route path="/:legacyPath/*" element={<LegacyAppRedirect />} />
       </Route>
 
-      {/* ===== BUYER ===== */}
+      {/* BUYER ONLY */}
       <Route element={<ProtectedRoute allowedRoles={['buyer']} />}>
         <Route path="/buyer" element={<BuyerLayout />}>
           <Route index element={<Navigate to="/buyer/dashboard" replace />} />
@@ -136,8 +133,8 @@ const AppRoutes = () => {
         </Route>
       </Route>
 
-      {/* ===== MARKETPLACE (shared) ===== */}
-      <Route element={<ProtectedRoute allowedRoles={['farmer', 'worker', 'buyer']} />}>
+      {/* MARKETPLACE — farmer + buyer */}
+      <Route element={<ProtectedRoute allowedRoles={['farmer', 'buyer']} />}>
         <Route path="/marketplace" element={<Marketplace />} />
         <Route path="/marketplace/product/:id" element={<ProductDetails />} />
         <Route path="/marketplace/cart" element={<Cart />} />
@@ -147,7 +144,7 @@ const AppRoutes = () => {
         <Route path="/marketplace/orders/:id" element={<OrderDetails />} />
       </Route>
 
-      {/* ===== ADMIN ===== */}
+      {/* ADMIN */}
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />

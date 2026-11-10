@@ -53,7 +53,7 @@ const AdminLayout = () => {
             <button type="button" onClick={() => setIsSidebarOpen(true)} className="md:hidden rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">Menu</button>
             <h1 className="text-lg font-semibold text-gray-800">Platform Administration</h1>
           </div>
-          <span className="text-xs text-red-600 font-bold px-3 py-1 bg-red-50 border border-red-100 rounded-full uppercase tracking-wider">Restricted Access</span>
+          <span className="text-xs text-gray-500">Administrator session</span>
         </header>
 
         <main className="content-scrollable">

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def key_role(key: str) -> str:
-    """Role claim of a Supabase key ('anon' or 'service_role'). Reading the payload needs no secret and the key is never logged."""
+    """Role claim of a Supabase key ('anon' or 'service_role')."""
     if not key:
         return "missing"
     if key.startswith("sb_secret_"):
@@ -26,23 +26,42 @@ def key_role(key: str) -> str:
 
 
 def _validate_configuration() -> str:
-    missing = [name for name, value in (("SUPABASE_URL", settings.SUPABASE_URL),
-                                        ("SUPABASE_SERVICE_ROLE_KEY", settings.SUPABASE_SERVICE_ROLE_KEY)) if not value]
+    missing = [
+        name
+        for name, value in (
+            ("SUPABASE_URL", settings.SUPABASE_URL),
+            ("SUPABASE_SERVICE_ROLE_KEY", settings.SUPABASE_SERVICE_ROLE_KEY),
+        )
+        if not value
+    ]
     if missing:
-        raise RuntimeError("Missing required environment variable(s): " + ", ".join(missing) + ". Set them in the Render dashboard.")
+        raise RuntimeError(
+            "Missing required environment variable(s): "
+            + ", ".join(missing)
+            + ". Set them in the Render dashboard."
+        )
+
+    # Strip accidental whitespace — the single most common cause of "I set the
+    # service-role key and RLS still blocks writes".
+    settings.SUPABASE_URL = settings.SUPABASE_URL.strip()
+    settings.SUPABASE_SERVICE_ROLE_KEY = settings.SUPABASE_SERVICE_ROLE_KEY.strip()
+
     role = key_role(settings.SUPABASE_SERVICE_ROLE_KEY)
     if role == "service_role":
         logger.info("Supabase client ready (server key role: service_role).")
     else:
         logger.error(
-            "SUPABASE_SERVICE_ROLE_KEY contains a key with role '%s', NOT a service_role key. Writes and Storage uploads that are "
-            "protected by Row Level Security will be REFUSED. Copy the 'service_role' (secret) key from Supabase > Project Settings > API.",
-            role)
+            "SUPABASE_SERVICE_ROLE_KEY contains a key with role '%s', NOT a service_role key. "
+            "Writes and Storage uploads that are protected by Row Level Security will be REFUSED. "
+            "Copy the 'service_role' (secret) key from Supabase > Project Settings > API.",
+            role,
+        )
     return role
 
 
 SERVICE_KEY_ROLE = _validate_configuration()
 
-# Server-side client using the service-role key. It bypasses Row Level Security, so the API must always filter by the
-# authenticated user's id itself (it does). This key must never reach the React frontend.
-supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+supabase: Client = create_client(
+    settings.SUPABASE_URL,
+    settings.SUPABASE_SERVICE_ROLE_KEY,
+)

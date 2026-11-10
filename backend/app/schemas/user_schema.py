@@ -9,9 +9,16 @@ class UserRegister(BaseModel):
     phone: Optional[str] = None
     farm_name: Optional[str] = None
     location: Optional[str] = None
-    role: str = "farmer"  # "farmer" or "buyer"
+    role: str = "farmer"
+    consent_given: bool = False
+    consent_version: Optional[str] = None
 
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str

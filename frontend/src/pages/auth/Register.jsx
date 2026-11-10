@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import BackButton from '../../components/common/BackButton';
 
+const CURRENT_PRIVACY_VERSION = '1.0';
+
 const Register = () => {
   const [formData, setFormData] = useState({
     full_name: '',
@@ -14,6 +16,7 @@ const Register = () => {
     confirm_password: '',
     role: 'farmer',
   });
+  const [consent, setConsent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -32,6 +35,9 @@ const Register = () => {
     setError('');
     setSuccess('');
 
+    if (!consent) {
+      return setError('You must accept the Privacy Policy and Terms to register.');
+    }
     if (formData.password !== formData.confirm_password) {
       return setError('Passwords do not match.');
     }
@@ -51,6 +57,8 @@ const Register = () => {
         phone: formData.phone.trim() || null,
         password: formData.password,
         role: formData.role,
+        consent_given: true,
+        consent_version: CURRENT_PRIVACY_VERSION,
       };
       if (formData.role === 'farmer') {
         payload.farm_name = formData.farm_name.trim();
@@ -93,26 +101,16 @@ const Register = () => {
             <div>
               <label className="block text-sm font-medium text-[#1B1B1B] mb-1.5">I am registering as</label>
               <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'farmer' })}
+                <button type="button" onClick={() => setFormData({ ...formData, role: 'farmer' })}
                   className={`py-3 rounded-xl border-2 font-medium transition ${
-                    formData.role === 'farmer'
-                      ? 'border-[#2E7D32] bg-[#E8F5E9] text-[#2E7D32]'
-                      : 'border-gray-200 bg-white text-gray-500'
-                  }`}
-                >
+                    formData.role === 'farmer' ? 'border-[#2E7D32] bg-[#E8F5E9] text-[#2E7D32]' : 'border-gray-200 bg-white text-gray-500'
+                  }`}>
                   Farmer
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'buyer' })}
+                <button type="button" onClick={() => setFormData({ ...formData, role: 'buyer' })}
                   className={`py-3 rounded-xl border-2 font-medium transition ${
-                    formData.role === 'buyer'
-                      ? 'border-[#2E7D32] bg-[#E8F5E9] text-[#2E7D32]'
-                      : 'border-gray-200 bg-white text-gray-500'
-                  }`}
-                >
+                    formData.role === 'buyer' ? 'border-[#2E7D32] bg-[#E8F5E9] text-[#2E7D32]' : 'border-gray-200 bg-white text-gray-500'
+                  }`}>
                   Buyer
                 </button>
               </div>
@@ -167,6 +165,24 @@ const Register = () => {
               <label className="block text-sm font-medium text-[#1B1B1B] mb-1.5">Confirm Password</label>
               <input type={showPassword ? 'text' : 'password'} required value={formData.confirm_password} onChange={updateField('confirm_password')}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-[#FAFCFA] focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/30 focus:border-[#2E7D32]" />
+            </div>
+
+            <div className="bg-[#FAFCFA] border border-gray-200 rounded-xl p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  className="mt-1 h-4 w-4 text-[#2E7D32] focus:ring-[#2E7D32] border-gray-300 rounded"
+                />
+                <span className="text-sm text-[#1B1B1B]">
+                  I have read and accept the{' '}
+                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#2E7D32] font-medium hover:underline">
+                    Privacy Policy
+                  </a>{' '}
+                  and the Terms of Service.
+                </span>
+              </label>
             </div>
 
             <button type="submit" disabled={loading}
