@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import marketplaceService from '../../services/marketplaceService';
 import { formatCurrency, formatDate, getStatusColor } from '../../utils/formatters';
+import { AuthContext } from '../../context/AuthContext';
+import { marketplaceBasePath } from '../../utils/marketplacePaths';
 
 const OrderDetails = () => {
+  const { user } = useContext(AuthContext);
+  const marketplacePath = marketplaceBasePath(user?.role);
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +34,7 @@ const OrderDetails = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <Link to={-1} className="text-primary hover:underline text-sm">← Back</Link>
+      <Link to={`${marketplacePath}/orders`} className="text-primary hover:underline text-sm">← Back to Orders</Link>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <div className="flex justify-between items-start border-b pb-4 mb-4">

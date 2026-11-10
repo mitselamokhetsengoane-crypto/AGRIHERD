@@ -16,7 +16,7 @@ CREATE TABLE public.profiles (
     phone VARCHAR(50),
     farm_name VARCHAR(150),
     location VARCHAR(255),
-    role VARCHAR(30) NOT NULL DEFAULT 'farmer' CHECK (role IN ('farmer', 'worker', 'admin')),
+    role VARCHAR(30) NOT NULL DEFAULT 'farmer' CHECK (role IN ('farmer', 'worker', 'buyer', 'admin')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -409,12 +409,12 @@ CREATE TABLE public.audit_logs (
 -- ============================================================
 CREATE TABLE public.role_permissions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    role VARCHAR(50) NOT NULL,
+    role VARCHAR(30) NOT NULL CHECK (role IN ('admin','farmer','buyer')),
     module VARCHAR(100) NOT NULL,
-    can_read BOOLEAN DEFAULT FALSE,
-    can_write BOOLEAN DEFAULT FALSE,
+    permission VARCHAR(50) NOT NULL CHECK (permission IN ('allowed','restricted')),
+    action VARCHAR(100) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(role, module)
+    UNIQUE(role, module, action)
 );
 
 -- ============================================================
@@ -561,7 +561,8 @@ WITH CHECK (EXISTS (
 CREATE POLICY "Users can access own transactions" ON public.transactions FOR ALL USING (auth.uid() = user_id);
 
 -- Products: everyone can view, but only seller can edit
-CREATE POLICY "Anyone can view products" ON public.marketplace_products FOR SELECT USING (TRUE);
+CREATE POLICY "Anyone can view products" ON public.marketplace_products FOR SELECT
+USING (status = 'Available' AND COALESCE(quantity_available, 0) > 0);
 CREATE POLICY "Sellers can manage own products" ON public.marketplace_products FOR ALL USING (auth.uid() = seller_id);
 
 -- Disease scans: users can only access their own

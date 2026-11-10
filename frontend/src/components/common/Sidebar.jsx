@@ -1,17 +1,19 @@
 import { NavLink } from 'react-router-dom';
+import AppIcon from './AppIcon';
 
 const Sidebar = ({ closeMobile }) => {
   const navItems = [
-    { name: 'Dashboard', path: '/app/dashboard' },
-    { name: 'Livestock', path: '/app/livestock' },
-    { name: 'Crops', path: '/app/crops' },
-    { name: 'Tasks', path: '/app/tasks' },
-    { name: 'Inventory', path: '/app/inventory' },
-    { name: 'Finance', path: '/app/finance' },
-    { name: 'My Listings', path: '/app/marketplace/listings' },
-    { name: 'Orders Received', path: '/app/marketplace/orders' },
-    { name: 'Browse Marketplace', path: '/marketplace' },
-    { name: 'Disease Scanner', path: '/app/disease-scanner' },
+    { name: 'Dashboard', path: '/app/dashboard', icon: 'dashboard' },
+    { name: 'Livestock', path: '/app/livestock', icon: 'livestock' },
+    { name: 'Crops', path: '/app/crops', icon: 'crops' },
+    { name: 'Tasks', path: '/app/tasks', icon: 'tasks' },
+    { name: 'Inventory', path: '/app/inventory', icon: 'inventory' },
+    { name: 'Finance', path: '/app/finance', icon: 'finance' },
+    { name: 'My Listings', path: '/app/marketplace/listings', icon: 'marketplace' },
+    { name: 'Orders Received', path: '/app/marketplace/orders', icon: 'cart' },
+    { name: 'Browse Marketplace', path: '/marketplace', icon: 'marketplace' },
+    { name: 'Disease Scanner', path: '/app/disease-scanner', icon: 'scanner' },
+    { name: 'Notifications', path: '/app/notifications', icon: 'notification' },
   ];
 
   return (
@@ -27,12 +29,13 @@ const Sidebar = ({ closeMobile }) => {
             to={item.path}
             onClick={closeMobile}
             className={({ isActive }) =>
-              `block px-4 py-3 rounded-md transition-colors text-sm font-medium ${
+              `flex items-center gap-3 px-4 py-3 rounded-md transition-colors text-sm font-medium ${
                 isActive ? 'bg-primary text-white' : 'text-maintext hover:bg-background'
               }`
             }
           >
-            {item.name}
+              <AppIcon name={item.icon} className="h-5 w-5 shrink-0" />
+              {item.name}
           </NavLink>
         ))}
       </nav>

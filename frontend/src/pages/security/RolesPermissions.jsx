@@ -47,9 +47,13 @@ const RolesPermissions = () => {
       {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
       {data.length === 0 && !error ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-          No role permissions were returned from the database. Check that the security tables and seed data in
-          {' '}<code>database/migrations/004_rls_and_seeds.sql</code> have been applied.
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+          <span>
+            No role permissions were returned from the database. Apply
+            {' '}<code>database/migrations/012_admin_dashboard_and_product_images.sql</code>
+            {' '}after the existing migrations, then refresh.
+          </span>
+          <button type="button" onClick={load} className="font-semibold underline">Retry</button>
         </div>
       ) : data.length > 0 ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

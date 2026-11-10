@@ -1,11 +1,14 @@
 import logging
 import uuid
+from io import BytesIO
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from PIL import Image, ImageOps, UnidentifiedImageError
+from pydantic import BaseModel, Field
 
+from app.core.config import settings
 from app.core.permissions import get_current_user
 from app.database.connection import supabase
 from app.services.income_service import IncomeService
@@ -13,6 +16,8 @@ from app.services.blockchain_trigger import record_order_on_chain
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
+ALLOWED_PRODUCT_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
 
 VALID_ORDER_STATUSES = {
     "PENDING", "ACCEPTED", "REJECTED", "PREPARING", "READY", "COMPLETED", "CANCELLED",
@@ -31,19 +36,20 @@ VALID_TRANSITIONS = {
 
 class AddToCart(BaseModel):
     product_id: str
-    quantity: float
+    quantity: float = Field(gt=0)
 
 
 class UpdateCartItem(BaseModel):
-    quantity: float
+    quantity: float = Field(gt=0)
 
 
 class CheckoutBody(BaseModel):
-    customer_name: str
-    phone: str
-    delivery_location: str
-    notes: Optional[str] = None
-    payment_method: str
+    customer_name: str = Field(min_length=1, max_length=150)
+    phone: str = Field(min_length=1, max_length=50)
+    delivery_location: str = Field(min_length=1, max_length=255)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    payment_method: Literal["CASH", "MOBILE_MONEY", "CARD"]
+    idempotency_key: uuid.UUID
 
 
 class OrderStatusUpdate(BaseModel):
@@ -85,7 +91,14 @@ def _get_or_create_cart(buyer_id: str) -> dict:
     existing = supabase.table("carts").select("*").eq("buyer_id", buyer_id).limit(1).execute()
     if existing.data:
         return existing.data[0]
-    created = supabase.table("carts").insert({"buyer_id": buyer_id}).execute()
+    try:
+        created = supabase.table("carts").insert({"buyer_id": buyer_id}).execute()
+    except Exception:
+        existing = supabase.table("carts").select("*").eq("buyer_id", buyer_id).limit(1).execute()
+        if existing.data:
+            return existing.data[0]
+        logger.exception("Could not create cart for buyer %s", buyer_id)
+        raise HTTPException(status_code=500, detail="Could not create cart.")
     if not created.data:
         raise HTTPException(status_code=500, detail="Could not create cart.")
     return created.data[0]
@@ -99,14 +112,14 @@ def _cart_with_items(cart_id: str) -> dict:
         .execute()
     )
     items = items_resp.data or []
-    total = 0.0
+    subtotal = 0.0
     enriched = []
     for row in items:
         product = row.get("marketplace_products") or {}
         price = float(product.get("price") or 0)
         qty = float(row.get("quantity") or 0)
         line_total = price * qty
-        total += line_total
+        subtotal += line_total
         enriched.append({
             "id": row["id"],
             "quantity": qty,
@@ -121,7 +134,32 @@ def _cart_with_items(cart_id: str) -> dict:
             },
             "line_total": line_total,
         })
-    return {"id": cart_id, "items": enriched, "total": total}
+    return {
+        "id": cart_id,
+        "items": enriched,
+        "item_count": sum(item["quantity"] for item in enriched),
+        "subtotal": subtotal,
+        "total": subtotal,
+    }
+
+
+def _raise_marketplace_rpc_error(exc: Exception, operation: str) -> None:
+    message = str(exc)
+    lowered = message.lower()
+    if "cart item not found" in lowered or "product not found" in lowered:
+        raise HTTPException(status_code=404, detail="Cart item or product not found.") from exc
+    if "not enough stock" in lowered or "no longer has enough stock" in lowered:
+        raise HTTPException(status_code=409, detail="Not enough stock is available.") from exc
+    if "not available" in lowered or "unavailable" in lowered:
+        raise HTTPException(status_code=409, detail="A product is no longer available.") from exc
+    if "cart is empty" in lowered:
+        raise HTTPException(status_code=400, detail="Your cart is empty.") from exc
+    if "quantity must" in lowered or "invalid payment" in lowered or "are required" in lowered:
+        raise HTTPException(status_code=422, detail=message.splitlines()[0]) from exc
+    if "already being processed" in lowered:
+        raise HTTPException(status_code=409, detail="This checkout is already being processed.") from exc
+    logger.error("%s failed: %s", operation, exc)
+    raise HTTPException(status_code=500, detail=f"{operation} failed.") from exc
 
 
 @router.get("/categories")
@@ -159,18 +197,106 @@ def delete_category(category_id: str, current_user: dict = Depends(get_current_u
 
 @router.get("/products")
 def get_products(category_id: Optional[str] = None):
-    q = supabase.table("marketplace_products").select("*").eq("status", "Available")
+    q = (
+        supabase.table("marketplace_products")
+        .select("*")
+        .eq("status", "Available")
+        .gt("quantity_available", 0)
+    )
     if category_id:
         q = q.eq("category_id", category_id)
-    return q.execute().data or []
+    products = q.execute().data or []
+    if not products:
+        return []
+    sellers = (
+        supabase.table("profiles")
+        .select("id,full_name,farm_name,location")
+        .in_("id", list({product["seller_id"] for product in products}))
+        .execute()
+        .data or []
+    )
+    seller_by_id = {seller["id"]: seller for seller in sellers}
+    for product in products:
+        product["seller"] = seller_by_id.get(product["seller_id"])
+    return products
 
 
 @router.get("/products/{product_id}")
 def get_product(product_id: str):
-    response = supabase.table("marketplace_products").select("*").eq("id", product_id).limit(1).execute()
+    response = (
+        supabase.table("marketplace_products")
+        .select("*")
+        .eq("id", product_id)
+        .eq("status", "Available")
+        .gt("quantity_available", 0)
+        .limit(1)
+        .execute()
+    )
     if not response.data:
         raise HTTPException(status_code=404, detail="Product not found.")
-    return response.data[0]
+    product = response.data[0]
+    seller = (
+        supabase.table("profiles")
+        .select("full_name,farm_name,location")
+        .eq("id", product["seller_id"])
+        .limit(1)
+        .execute()
+    )
+    product["seller"] = seller.data[0] if seller.data else None
+    return product
+
+
+@router.post("/products/image")
+def upload_product_image(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    _require_seller_or_admin(current_user)
+    raw = file.file.read(MAX_PRODUCT_IMAGE_BYTES + 1)
+    if not raw:
+        raise HTTPException(status_code=400, detail="Choose an image to upload.")
+    if len(raw) > MAX_PRODUCT_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="Product images must be 5 MB or smaller.")
+
+    try:
+        with Image.open(BytesIO(raw)) as probe:
+            image_format = probe.format
+            probe.verify()
+        if image_format not in ALLOWED_PRODUCT_IMAGE_FORMATS:
+            raise HTTPException(status_code=400, detail="Use a JPEG, PNG, or WEBP image.")
+
+        with Image.open(BytesIO(raw)) as source:
+            image = ImageOps.exif_transpose(source).convert("RGB")
+            image.thumbnail((1600, 1600))
+            output = BytesIO()
+            image.save(output, format="JPEG", quality=88, optimize=True)
+            image_bytes = output.getvalue()
+    except HTTPException:
+        raise
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+        raise HTTPException(status_code=400, detail="The uploaded file is not a valid image.") from exc
+
+    object_path = f"{current_user['sub']}/{uuid.uuid4().hex}.jpg"
+    try:
+        storage = supabase.storage.from_(settings.PRODUCT_IMAGE_BUCKET)
+        storage.upload(
+            object_path,
+            image_bytes,
+            {"content-type": "image/jpeg", "upsert": "false"},
+        )
+        image_url = storage.get_public_url(object_path)
+        if isinstance(image_url, dict):
+            image_url = image_url.get("publicUrl") or (image_url.get("data") or {}).get("publicUrl")
+        if not isinstance(image_url, str) or not image_url:
+            raise RuntimeError("Storage returned no public image URL.")
+    except Exception as exc:
+        logger.exception("Product image upload failed for seller %s", current_user["sub"])
+        raise HTTPException(
+            status_code=502,
+            detail="Could not store the product image. Check that the marketplace-products storage bucket is configured.",
+        ) from exc
+
+    return {"image_url": image_url}
 
 
 @router.get("/listings/mine")
@@ -259,46 +385,35 @@ def get_cart(current_user: dict = Depends(get_current_user)):
 @router.post("/cart")
 def add_to_cart(body: AddToCart, current_user: dict = Depends(get_current_user)):
     _require_buyer(current_user)
-    if body.quantity <= 0:
-        raise HTTPException(status_code=400, detail="Quantity must be greater than zero.")
-    product_resp = supabase.table("marketplace_products").select("*").eq("id", body.product_id).limit(1).execute()
-    if not product_resp.data:
-        raise HTTPException(status_code=404, detail="Product not found.")
-    product = product_resp.data[0]
-    if product.get("status") != "Available":
-        raise HTTPException(status_code=400, detail="This product is not available.")
-    if float(product.get("quantity_available") or 0) < body.quantity:
-        raise HTTPException(status_code=400, detail="Not enough stock available.")
-
-    cart = _get_or_create_cart(current_user["sub"])
-    existing = supabase.table("cart_items").select("*").eq("cart_id", cart["id"]).eq("product_id", body.product_id).limit(1).execute()
-    if existing.data:
-        new_qty = float(existing.data[0]["quantity"]) + body.quantity
-        if new_qty > float(product.get("quantity_available") or 0):
-            raise HTTPException(status_code=400, detail="Not enough stock available.")
-        supabase.table("cart_items").update({"quantity": new_qty}).eq("id", existing.data[0]["id"]).execute()
-    else:
-        supabase.table("cart_items").insert({
-            "cart_id": cart["id"], "product_id": body.product_id, "quantity": body.quantity,
-        }).execute()
-    return _cart_with_items(cart["id"])
+    try:
+        response = supabase.rpc(
+            "add_marketplace_cart_item",
+            {
+                "p_buyer_id": current_user["sub"],
+                "p_product_id": body.product_id,
+                "p_quantity": body.quantity,
+            },
+        ).execute()
+    except Exception as exc:
+        _raise_marketplace_rpc_error(exc, "Adding product to cart")
+    return _cart_with_items(str(response.data))
 
 
 @router.put("/cart/{item_id}")
 def update_cart_item(item_id: str, body: UpdateCartItem, current_user: dict = Depends(get_current_user)):
     _require_buyer(current_user)
-    if body.quantity <= 0:
-        raise HTTPException(status_code=400, detail="Quantity must be greater than zero.")
-    cart = _get_or_create_cart(current_user["sub"])
-    item_resp = supabase.table("cart_items").select("*").eq("id", item_id).eq("cart_id", cart["id"]).limit(1).execute()
-    if not item_resp.data:
-        raise HTTPException(status_code=404, detail="Cart item not found.")
-    product_resp = supabase.table("marketplace_products").select("quantity_available").eq("id", item_resp.data[0]["product_id"]).limit(1).execute()
-    available = float((product_resp.data[0] if product_resp.data else {}).get("quantity_available") or 0)
-    if body.quantity > available:
-        raise HTTPException(status_code=400, detail="Not enough stock available.")
-    supabase.table("cart_items").update({"quantity": body.quantity}).eq("id", item_id).execute()
-    return _cart_with_items(cart["id"])
+    try:
+        response = supabase.rpc(
+            "set_marketplace_cart_item_quantity",
+            {
+                "p_buyer_id": current_user["sub"],
+                "p_item_id": item_id,
+                "p_quantity": body.quantity,
+            },
+        ).execute()
+    except Exception as exc:
+        _raise_marketplace_rpc_error(exc, "Updating cart quantity")
+    return _cart_with_items(str(response.data))
 
 
 @router.delete("/cart/{item_id}")
@@ -309,105 +424,35 @@ def remove_cart_item(item_id: str, current_user: dict = Depends(get_current_user
     return _cart_with_items(cart["id"])
 
 
+@router.delete("/cart")
+def clear_cart(current_user: dict = Depends(get_current_user)):
+    _require_buyer(current_user)
+    cart = _get_or_create_cart(current_user["sub"])
+    supabase.table("cart_items").delete().eq("cart_id", cart["id"]).execute()
+    return _cart_with_items(cart["id"])
+
+
 @router.post("/checkout")
 def checkout(body: CheckoutBody, current_user: dict = Depends(get_current_user)):
     _require_buyer(current_user)
-    if body.payment_method not in ("CASH", "MOBILE_MONEY", "CARD"):
-        raise HTTPException(status_code=400, detail="Invalid payment method.")
-
-    cart = _get_or_create_cart(current_user["sub"])
-    cart_data = _cart_with_items(cart["id"])
-    if not cart_data["items"]:
-        raise HTTPException(status_code=400, detail="Your cart is empty.")
-
-    by_seller: dict = {}
-    for item in cart_data["items"]:
-        by_seller.setdefault(item["product"]["seller_id"], []).append(item)
-
-    checkout_group = str(uuid.uuid4())
-    created_orders = []
-
-    for seller_id, items in by_seller.items():
-        total = sum(i["line_total"] for i in items)
-        deducted = []
-        try:
-            for item in items:
-                pid = item["product"]["id"]
-                qty = float(item["quantity"])
-                # Atomic conditional stock deduction using a filter.
-                # The .gte filter means the UPDATE only succeeds if enough stock exists.
-                upd = (
-                    supabase.table("marketplace_products")
-                    .update({"quantity_available": f"GREATEST(0, quantity_available - {qty})"})
-                    .eq("id", pid)
-                    .gte("quantity_available", qty)
-                    .execute()
-                )
-                if not upd.data:
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"Not enough stock for {item['product']['name']}.",
-                    )
-                deducted.append((pid, qty))
-
-            order_resp = supabase.table("orders").insert({
-                "buyer_id": current_user["sub"],
-                "seller_id": seller_id,
-                "checkout_group": checkout_group,
-                "total": total,
-                "status": "PENDING",
-                "customer_name": body.customer_name,
-                "phone": body.phone,
-                "delivery_location": body.delivery_location,
-                "notes": body.notes,
-            }).execute()
-            order = order_resp.data[0]
-
-            supabase.table("order_items").insert([
-                {
-                    "order_id": order["id"],
-                    "product_id": item["product"]["id"],
-                    "product_name": item["product"]["name"],
-                    "quantity": item["quantity"],
-                    "unit_price": item["product"]["price"],
-                } for item in items
-            ]).execute()
-
-            supabase.table("payments").insert({
-                "order_id": order["id"],
-                "amount": total,
-                "method": body.payment_method,
-                "status": "PENDING",
-                "is_simulated": body.payment_method != "CASH",
-                "reference": f"{checkout_group[:8]}-{order['id'][:8]}",
-            }).execute()
-
-            created_orders.append(order)
-        except HTTPException:
-            for pid, q in deducted:
-                p = supabase.table("marketplace_products").select("quantity_available").eq("id", pid).limit(1).execute()
-                if p.data:
-                    supabase.table("marketplace_products").update({
-                        "quantity_available": float(p.data[0]["quantity_available"] or 0) + q,
-                    }).eq("id", pid).execute()
-            raise
-        except Exception as exc:
-            logger.exception("Checkout failed")
-            for pid, q in deducted:
-                p = supabase.table("marketplace_products").select("quantity_available").eq("id", pid).limit(1).execute()
-                if p.data:
-                    supabase.table("marketplace_products").update({
-                        "quantity_available": float(p.data[0]["quantity_available"] or 0) + q,
-                    }).eq("id", pid).execute()
-            raise HTTPException(status_code=500, detail="Checkout failed.") from exc
-
-    supabase.table("cart_items").delete().eq("cart_id", cart["id"]).execute()
-    return {
-        "checkout_group": checkout_group,
-        "orders": created_orders,
-        "payment_method": body.payment_method,
-        "is_simulated": body.payment_method != "CASH",
-    }
+    try:
+        response = supabase.rpc(
+            "checkout_marketplace_cart",
+            {
+                "p_buyer_id": current_user["sub"],
+                "p_idempotency_key": str(body.idempotency_key),
+                "p_customer_name": body.customer_name.strip(),
+                "p_phone": body.phone.strip(),
+                "p_delivery_location": body.delivery_location.strip(),
+                "p_notes": body.notes.strip() if body.notes else None,
+                "p_payment_method": body.payment_method,
+            },
+        ).execute()
+    except Exception as exc:
+        _raise_marketplace_rpc_error(exc, "Checkout")
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Checkout did not return an order.")
+    return response.data
 
 
 @router.get("/orders")
@@ -422,7 +467,40 @@ def get_orders(current_user: dict = Depends(get_current_user)):
         q = supabase.table("orders").select("*").eq("buyer_id", uid)
     else:
         raise HTTPException(status_code=403, detail="Not authorized.")
-    return q.order("created_at", desc=True).execute().data or []
+    orders = q.order("created_at", desc=True).execute().data or []
+    if not orders:
+        return []
+
+    order_ids = [order["id"] for order in orders]
+    payments = (
+        supabase.table("payments")
+        .select("order_id,method,status")
+        .in_("order_id", order_ids)
+        .execute()
+        .data or []
+    )
+    payment_by_order = {payment["order_id"]: payment for payment in payments}
+    order_items = (
+        supabase.table("order_items")
+        .select("order_id,product_name,quantity")
+        .in_("order_id", order_ids)
+        .execute()
+        .data or []
+    )
+    items_by_order: dict = {}
+    for item in order_items:
+        summary = items_by_order.setdefault(item["order_id"], [])
+        summary.append({
+            "product_name": item["product_name"],
+            "quantity": float(item["quantity"]),
+        })
+
+    for order in orders:
+        payment = payment_by_order.get(order["id"])
+        order["payment_method"] = payment.get("method") if payment else None
+        order["payment_status"] = payment.get("status") if payment else None
+        order["items"] = items_by_order.get(order["id"], [])
+    return orders
 
 
 @router.get("/orders/{order_id}")

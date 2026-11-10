@@ -40,7 +40,7 @@ def get_dashboard_summary(current_user: dict = Depends(get_current_user)):
         .select("id,name,created_at")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
-        .limit(5)
+        .limit(3)
         .execute()
         .data
     )
@@ -63,7 +63,7 @@ def get_dashboard_summary(current_user: dict = Depends(get_current_user)):
         .select("action,details,created_at")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
-        .limit(5)
+        .limit(3)
         .execute()
         .data
     )
@@ -118,5 +118,5 @@ def get_dashboard_summary(current_user: dict = Depends(get_current_user)):
             for item in inventory
         ),
         "net_balance": income - expenses,
-        "recent_activity": recent_activity[:5],
+        "recent_activity": recent_activity[:3],
     }

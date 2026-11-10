@@ -1,11 +1,16 @@
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { formatCurrency } from '../../utils/formatters';
+import { useContext } from 'react';
+import { AuthContext } from '../../context/AuthContext';
+import { marketplaceBasePath } from '../../utils/marketplacePaths';
 
 const OrderConfirmation = () => {
+  const { user } = useContext(AuthContext);
+  const marketplacePath = marketplaceBasePath(user?.role);
   const { state } = useLocation();
   const result = state?.result;
 
-  if (!result) return <Navigate to="/marketplace/orders" replace />;
+  if (!result) return <Navigate to={`${marketplacePath}/orders`} replace />;
 
   return (
     <section className="mx-auto max-w-2xl rounded-xl border border-gray-100 bg-white p-8 shadow-sm">
@@ -33,10 +38,10 @@ const OrderConfirmation = () => {
       )}
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Link to="/marketplace/orders" className="rounded-md bg-primary px-5 py-2 font-medium text-white hover:bg-green-800">
+        <Link to={`${marketplacePath}/orders`} className="rounded-md bg-primary px-5 py-2 font-medium text-white hover:bg-green-800">
           View My Orders
         </Link>
-        <Link to="/marketplace" className="rounded-md border border-gray-300 px-5 py-2 font-medium text-gray-700 hover:bg-gray-50">
+        <Link to={marketplacePath} className="rounded-md border border-gray-300 px-5 py-2 font-medium text-gray-700 hover:bg-gray-50">
           Continue Shopping
         </Link>
       </div>

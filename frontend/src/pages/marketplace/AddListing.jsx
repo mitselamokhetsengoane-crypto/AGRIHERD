@@ -13,6 +13,18 @@ const AddListing = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview('');
+      return undefined;
+    }
+    const objectUrl = URL.createObjectURL(imageFile);
+    setImagePreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [imageFile]);
 
   useEffect(() => {
     const load = async () => {
@@ -48,6 +60,9 @@ const AddListing = () => {
     setLoading(true);
     setError('');
     try {
+      const imageUrl = imageFile
+        ? (await marketplaceService.uploadProductImage(imageFile)).image_url
+        : formData.image_url;
       const payload = {
         name: formData.name,
         category_id: formData.category_id || null,
@@ -55,7 +70,7 @@ const AddListing = () => {
         price: Number(formData.price),
         quantity_available: Number(formData.quantity_available),
         unit: formData.unit,
-        image_url: formData.image_url,
+        image_url: imageUrl,
       };
       if (isEdit) {
         await marketplaceService.updateProduct(id, payload);
@@ -115,12 +130,15 @@ const AddListing = () => {
             className="w-full border border-gray-300 rounded-md px-4 py-2 focus:border-primary" />
         </div>
         <div>
-          <label className="block text-sm text-subtext mb-1">Image URL (optional)</label>
-          <input name="image_url" type="url" value={formData.image_url} onChange={updateField}
-            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:border-primary" />
-          <p className="text-xs text-subtext mt-1">
-            Paste a public image URL from your Supabase Storage or elsewhere.
-          </p>
+          <label htmlFor="product-image" className="block text-sm text-subtext mb-1">Product image (optional)</label>
+          <input id="product-image" name="product-image" type="file" accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => setImageFile(event.target.files?.[0] || null)}
+            className="w-full rounded-md border border-gray-300 px-4 py-2 file:mr-3 file:rounded file:border-0 file:bg-green-50 file:px-3 file:py-1 file:text-sm file:font-medium file:text-primary" />
+          <p className="text-xs text-subtext mt-1">Upload a JPEG, PNG, or WEBP image up to 5 MB.</p>
+          {(imagePreview || formData.image_url) && (
+            <img src={imagePreview || formData.image_url} alt="Product preview"
+              className="mt-3 h-40 w-40 rounded-md border border-gray-200 object-cover" />
+          )}
         </div>
 
         <div className="flex gap-3 pt-2">

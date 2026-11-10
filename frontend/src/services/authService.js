@@ -6,6 +6,8 @@ const authService = {
     return response.data;
   },
 
+  getProfile: async () => (await api.get('/auth/me')).data,
+
   register: async (userData) => {
     const response = await api.post('/auth/register', userData);
     return response.data;

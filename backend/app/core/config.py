@@ -43,6 +43,7 @@ class Settings:
 
     # ---- Scan image storage ----------------------------------------------------------------------------------------
     SUPABASE_SCAN_BUCKET: str = _env("SUPABASE_SCAN_BUCKET", "disease-scans")
+    PRODUCT_IMAGE_BUCKET: str = _env("PRODUCT_IMAGE_BUCKET", "marketplace-products")
     # true  = bucket is PUBLIC: the public URL is stored in disease_scans.image_url (anyone with the unguessable link can view)
     # false = bucket is PRIVATE: the object path is stored and short-lived signed links are generated on every read
     SCAN_BUCKET_PUBLIC: bool = _bool("SCAN_BUCKET_PUBLIC", True)

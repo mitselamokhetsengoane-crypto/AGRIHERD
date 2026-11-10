@@ -2,6 +2,8 @@ import { useContext, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import Footer from '../components/common/Footer';
 import BackButton from '../components/common/BackButton';
+import AppIcon from '../components/common/AppIcon';
+import NotificationBell from '../components/common/NotificationBell';
 import { AuthContext } from '../context/AuthContext';
 
 const iconShapes = {
@@ -73,10 +75,16 @@ const AdminLayout = () => {
         <header className="header-fixed bg-white shadow-sm flex items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-3">
             <BackButton fallbackPath="/admin/dashboard" compact />
-            <button type="button" onClick={() => setIsSidebarOpen(true)} className="md:hidden rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">Menu</button>
+            <button type="button" onClick={() => setIsSidebarOpen(true)} aria-label="Open navigation menu"
+              className="md:hidden rounded-md border border-gray-300 p-2 text-gray-700 hover:bg-gray-100">
+              <AppIcon name="menu" />
+            </button>
             <h1 className="text-lg font-semibold text-gray-800">Platform Administration</h1>
           </div>
-          <span className="text-xs text-gray-500">Administrator session</span>
+          <div className="flex items-center gap-3">
+            <NotificationBell to="/app/notifications" />
+            <span className="text-xs text-gray-500">Administrator session</span>
+          </div>
         </header>
 
         <main className="content-scrollable">

@@ -1,32 +1,64 @@
-import { useState } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import marketplaceService from '../../services/marketplaceService';
+import { AuthContext } from '../../context/AuthContext';
+import { formatCurrency } from '../../utils/formatters';
+import { marketplaceBasePath } from '../../utils/marketplacePaths';
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+  const marketplacePath = marketplaceBasePath(user?.role);
+  const idempotencyKey = useRef(
+    window.sessionStorage.getItem('marketplace-checkout-key') || crypto.randomUUID()
+  );
+  const [cart, setCart] = useState(null);
+  const [cartLoading, setCartLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    customer_name: '',
-    phone: '',
-    delivery_location: '',
+    customer_name: user?.full_name || '',
+    phone: user?.phone || '',
+    delivery_location: user?.location || '',
     notes: '',
     payment_method: 'CASH',
   });
+
+  useEffect(() => {
+    window.sessionStorage.setItem('marketplace-checkout-key', idempotencyKey.current);
+    marketplaceService.getCart()
+      .then(setCart)
+      .catch((err) => setError(err.response?.data?.detail || 'Could not load your cart.'))
+      .finally(() => setCartLoading(false));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      const result = await marketplaceService.checkout(formData);
-      navigate('/marketplace/order-confirmation', { state: { result } });
+      const result = await marketplaceService.checkout({
+        ...formData,
+        idempotency_key: idempotencyKey.current,
+      });
+      window.sessionStorage.removeItem('marketplace-checkout-key');
+      navigate(`${marketplacePath}/order-confirmation`, { state: { result } });
     } catch (err) {
-      setError(err.response?.data?.detail || 'Your order could not be submitted. Please try again.');
+      setError(err.response?.data?.detail || 'Your order could not be submitted. You can safely retry.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (cartLoading) return <div className="p-8 text-center text-subtext">Loading checkout...</div>;
+  if (!cart?.items?.length) {
+    return (
+      <div className="p-8 text-center bg-white rounded-xl shadow-sm border border-gray-100">
+        <p className="text-subtext mb-4">Your cart is empty.</p>
+        <Link to={`${marketplacePath}/cart`} className="text-primary hover:underline">Return to cart</Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -34,6 +66,21 @@ const Checkout = () => {
 
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
         {error && <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-error">{error}</p>}
+
+        <section className="space-y-3 border-b border-gray-100 pb-4">
+          <h2 className="font-semibold text-maintext">Order summary</h2>
+          {cart.items.map((item) => (
+            <div key={item.id} className="flex justify-between gap-4 text-sm">
+              <span>{item.product.name} × {item.quantity}</span>
+              <span className="font-medium">{formatCurrency(item.line_total)}</span>
+            </div>
+          ))}
+          <div className="flex justify-between border-t pt-3 font-bold">
+            <span>Subtotal and total</span>
+            <span className="text-primary">{formatCurrency(cart.total)}</span>
+          </div>
+          <p className="text-xs text-subtext">Delivery or collection arrangements are confirmed with the seller.</p>
+        </section>
 
         <div>
           <label className="block text-sm text-subtext mb-1">Full Name</label>
@@ -80,7 +127,7 @@ const Checkout = () => {
           {loading ? 'Processing...' : 'Place Order'}
         </button>
         <div className="text-center">
-          <Link to="/marketplace/cart" className="text-primary text-sm hover:underline">← Back to Cart</Link>
+          <Link to={`${marketplacePath}/cart`} className="text-primary text-sm hover:underline">← Back to Cart</Link>
         </div>
       </form>
     </div>

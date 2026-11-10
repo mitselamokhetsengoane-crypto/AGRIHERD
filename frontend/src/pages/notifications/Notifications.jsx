@@ -19,6 +19,7 @@ const Notifications = () => {
       ]);
       setItems(list);
       setUnread(count);
+      window.dispatchEvent(new Event('notifications-updated'));
     } catch (err) {
       setError(err.response?.data?.detail || 'Could not load notifications.');
     } finally {

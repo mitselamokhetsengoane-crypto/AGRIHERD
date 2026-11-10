@@ -85,8 +85,9 @@ const SecuritySettings = () => {
 
       {settings.length === 0 && !error ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-          No security settings were returned from the database. Check that the security tables and seed data in
-          {' '}<code>database/migrations/004_rls_and_seeds.sql</code> have been applied.
+          No security settings were returned from the database. Apply
+          {' '}<code>database/migrations/012_admin_dashboard_and_product_images.sql</code>
+          {' '}after the existing migrations, then refresh.
           <button type="button" onClick={load} className="ml-3 font-semibold underline">Retry</button>
         </div>
       ) : settings.length > 0 ? (

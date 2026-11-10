@@ -3,11 +3,13 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import marketplaceService from '../../services/marketplaceService';
 import { formatCurrency } from '../../utils/formatters';
 import { AuthContext } from '../../context/AuthContext';
+import { marketplaceBasePath } from '../../utils/marketplacePaths';
 
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const marketplacePath = marketplaceBasePath(user?.role);
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,7 @@ const ProductDetails = () => {
     setAddError('');
     try {
       await marketplaceService.addToCart(product.id, quantity);
-      navigate('/marketplace/cart');
+      navigate(`${marketplacePath}/cart`);
     } catch (err) {
       setAddError(err.response?.data?.detail || 'Could not add to cart.');
     } finally {
@@ -57,7 +59,7 @@ const ProductDetails = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <Link to="/marketplace" className="text-primary hover:underline text-sm">← Back to Marketplace</Link>
+      <Link to={marketplacePath} className="text-primary hover:underline text-sm">← Back to Marketplace</Link>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row">
         <div className="md:w-1/2 h-64 md:h-auto bg-gray-200">
@@ -72,6 +74,12 @@ const ProductDetails = () => {
         <div className="md:w-1/2 p-8 space-y-4">
           <h1 className="text-3xl font-bold text-maintext">{product.name}</h1>
           {product.category && <p className="text-subtext">{product.category}</p>}
+          {product.seller && (
+            <div className="text-sm text-subtext">
+              <p>Sold by {product.seller.farm_name || product.seller.full_name}</p>
+              {product.seller.location && <p>{product.seller.location}</p>}
+            </div>
+          )}
           <p className="text-2xl font-bold text-primary">
             {formatCurrency(product.price)}
             {product.unit && <span className="text-sm font-normal text-subtext"> / {product.unit}</span>}
@@ -96,12 +104,17 @@ const ProductDetails = () => {
                 <label className="font-semibold text-maintext">Quantity:</label>
                 <input
                   type="number"
-                  min="1"
+                  min="0.01"
+                  step="any"
                   max={available}
                   value={quantity}
                   onChange={(e) => {
-                    const v = parseInt(e.target.value, 10) || 1;
-                    setQuantity(Math.min(Math.max(1, v), available));
+                    if (e.target.value === '') {
+                      setQuantity('');
+                      return;
+                    }
+                    const v = Number(e.target.value);
+                    setQuantity(Number.isFinite(v) ? Math.min(Math.max(0.01, v), available) : '');
                   }}
                   className="border border-gray-300 rounded-md px-3 py-1 w-24 focus:outline-none focus:border-primary"
                 />
@@ -112,7 +125,7 @@ const ProductDetails = () => {
               {isBuyer ? (
                 <button
                   onClick={handleAddToCart}
-                  disabled={adding}
+                  disabled={adding || !Number.isFinite(Number(quantity)) || Number(quantity) <= 0}
                   className="w-full bg-primary text-white py-3 rounded-md hover:bg-green-800 transition disabled:opacity-60"
                 >
                   {adding ? 'Adding...' : 'Add to Cart'}

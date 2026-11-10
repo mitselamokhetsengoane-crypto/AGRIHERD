@@ -1,8 +1,10 @@
+from io import BytesIO
 from types import SimpleNamespace
 import unittest
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from app.core.permissions import get_current_user
 from app.main import api, app
@@ -16,6 +18,9 @@ def mock_table(data):
     table.insert.return_value = table
     table.select.return_value = table
     table.eq.return_value = table
+    table.in_.return_value = table
+    table.gt.return_value = table
+    table.gt.return_value = table
     table.gte.return_value = table
     table.neq.return_value = table
     table.lte.return_value = table
@@ -59,6 +64,25 @@ class TestMissingApiRoutes(unittest.TestCase):
             "net_balance": 75,
             "recent_activity": [{"description": "Added animal", "time": "2026-11-07"}],
         })
+
+    def test_dashboard_returns_at_most_three_recent_activities(self):
+        tables = {
+            "livestock": mock_table([]),
+            "crops": mock_table([]),
+            "tasks": mock_table([]),
+            "inventory": mock_table([]),
+            "transactions": mock_table([]),
+            "audit_logs": mock_table([
+                {"action": "UPDATE", "details": f"Activity {i}", "created_at": f"2026-11-{10 - i:02d}"}
+                for i in range(5)
+            ]),
+        }
+        with patch("app.api.v1.dashboard.supabase") as supabase_mock:
+            supabase_mock.table.side_effect = tables.get
+            response = client.get("/api/v1/dashboard/summary")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["recent_activity"]), 3)
 
     def test_inventory_item_detail_is_scoped_to_current_user(self):
         table = mock_table([{"id": "item-id", "name": "Feed", "user_id": "user-id"}])
@@ -165,6 +189,132 @@ class TestInventoryStockRoute(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         supabase_mock.rpc.assert_not_called()
 
+
+class TestMarketplaceBuyerRoutes(unittest.TestCase):
+    def setUp(self):
+        api.dependency_overrides[get_current_user] = lambda: {
+            "sub": "buyer-id",
+            "role": "buyer",
+        }
+
+    def tearDown(self):
+        api.dependency_overrides.pop(get_current_user, None)
+
+    def test_add_to_cart_uses_authenticated_buyer_and_atomic_rpc(self):
+        cart_items = mock_table([])
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.rpc.return_value.execute.return_value.data = "cart-id"
+            supabase_mock.table.return_value = cart_items
+            response = client.post(
+                "/api/v1/marketplace/cart",
+                json={"product_id": "product-id", "quantity": 2},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        supabase_mock.rpc.assert_called_once_with(
+            "add_marketplace_cart_item",
+            {
+                "p_buyer_id": "buyer-id",
+                "p_product_id": "product-id",
+                "p_quantity": 2.0,
+            },
+        )
+        self.assertEqual(response.json()["item_count"], 0)
+
+    def test_cart_returns_buyer_items_and_calculated_totals(self):
+        cart_table = mock_table([{"id": "cart-id", "buyer_id": "buyer-id"}])
+        items_table = mock_table([{
+            "id": "item-id",
+            "quantity": 2,
+            "marketplace_products": {
+                "id": "product-id",
+                "name": "Maize",
+                "price": 12.5,
+                "unit": "kg",
+                "image_url": "https://example.test/maize.jpg",
+                "seller_id": "seller-id",
+                "quantity_available": 8,
+            },
+        }])
+
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.table.side_effect = [cart_table, items_table]
+            response = client.get("/api/v1/marketplace/cart")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["item_count"], 2)
+        self.assertEqual(response.json()["subtotal"], 25)
+        self.assertEqual(response.json()["total"], 25)
+        self.assertEqual(response.json()["items"][0]["product"]["name"], "Maize")
+        cart_table.eq.assert_called_once_with("buyer_id", "buyer-id")
+
+    def test_checkout_uses_server_calculated_atomic_rpc(self):
+        rpc_result = {
+            "checkout_group": "group-id",
+            "orders": [{"id": "order-id", "total": 25}],
+            "total": 25,
+            "payment_method": "CASH",
+            "is_simulated": False,
+        }
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.rpc.return_value.execute.return_value.data = rpc_result
+            response = client.post(
+                "/api/v1/marketplace/checkout",
+                json={
+                    "customer_name": "Buyer",
+                    "phone": "123",
+                    "delivery_location": "Town",
+                    "payment_method": "CASH",
+                    "idempotency_key": "11111111-1111-4111-8111-111111111111",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), rpc_result)
+        supabase_mock.rpc.assert_called_once_with(
+            "checkout_marketplace_cart",
+            {
+                "p_buyer_id": "buyer-id",
+                "p_idempotency_key": "11111111-1111-4111-8111-111111111111",
+                "p_customer_name": "Buyer",
+                "p_phone": "123",
+                "p_delivery_location": "Town",
+                "p_notes": None,
+                "p_payment_method": "CASH",
+            },
+        )
+
+    def test_checkout_rejects_insufficient_stock(self):
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.rpc.return_value.execute.side_effect = Exception(
+                "Not enough stock available"
+            )
+            response = client.post(
+                "/api/v1/marketplace/checkout",
+                json={
+                    "customer_name": "Buyer",
+                    "phone": "123",
+                    "delivery_location": "Town",
+                    "payment_method": "CASH",
+                    "idempotency_key": "11111111-1111-4111-8111-111111111111",
+                },
+            )
+
+        self.assertEqual(response.status_code, 409)
+
+    def test_buyer_cannot_read_another_buyers_order(self):
+        order_table = mock_table([{
+            "id": "order-id",
+            "buyer_id": "another-buyer-id",
+            "seller_id": "seller-id",
+            "status": "PENDING",
+        }])
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.table.return_value = order_table
+            response = client.get("/api/v1/marketplace/orders/order-id")
+
+        self.assertEqual(response.status_code, 403)
+
     def test_cors_preflight_allows_production_frontend(self):
         response = client.options(
             "/api/v1/crops/crop-id/plantings",
@@ -180,6 +330,125 @@ class TestInventoryStockRoute(unittest.TestCase):
             response.headers["access-control-allow-origin"],
             "https://agriherd-1.onrender.com",
         )
+
+
+class TestMarketplaceImageUpload(unittest.TestCase):
+    def setUp(self):
+        api.dependency_overrides[get_current_user] = lambda: {
+            "sub": "seller-id",
+            "role": "farmer",
+        }
+
+    def tearDown(self):
+        api.dependency_overrides.pop(get_current_user, None)
+
+    def test_seller_uploads_image_file_to_product_storage(self):
+        image_buffer = BytesIO()
+        Image.new("RGB", (4, 4), color="green").save(image_buffer, format="PNG")
+        image_buffer.seek(0)
+        storage = MagicMock()
+        storage.get_public_url.return_value = "https://storage.test/product.jpg"
+
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.storage.from_.return_value = storage
+            response = client.post(
+                "/api/v1/marketplace/products/image",
+                files={"file": ("product.png", image_buffer, "image/png")},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"image_url": "https://storage.test/product.jpg"},
+        )
+        storage.upload.assert_called_once()
+        self.assertEqual(storage.upload.call_args.args[2]["content-type"], "image/jpeg")
+
+
+class TestAdminDashboardAndNotifications(unittest.TestCase):
+    def setUp(self):
+        api.dependency_overrides[get_current_user] = lambda: {
+            "sub": "admin-id",
+            "role": "admin",
+        }
+
+    def tearDown(self):
+        api.dependency_overrides.pop(get_current_user, None)
+
+    def test_security_settings_returns_database_rows(self):
+        settings_table = mock_table([{
+            "setting_key": "password_min_length",
+            "setting_value": "8",
+        }])
+        with patch("app.api.v1.security.supabase") as supabase_mock:
+            supabase_mock.table.return_value = settings_table
+            response = client.get("/api/v1/security/system-settings")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["setting_key"], "password_min_length")
+
+    def test_role_permissions_returns_database_rows(self):
+        permissions_table = mock_table([{
+            "id": "permission-id",
+            "role": "buyer",
+            "module": "Marketplace",
+            "permission": "allowed",
+            "action": "Read: Active Listings",
+        }])
+        with patch("app.api.v1.security.supabase") as supabase_mock:
+            supabase_mock.table.return_value = permissions_table
+            response = client.get("/api/v1/security/role-permissions")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["role"], "buyer")
+
+    def test_ai_summary_returns_scan_count(self):
+        scans_table = mock_table([])
+        scans_table.execute.return_value = SimpleNamespace(data=[], count=6)
+        with patch("app.api.v1.admin.supabase") as supabase_mock:
+            supabase_mock.table.return_value = scans_table
+            response = client.get("/api/v1/admin/ai/summary")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["disease_scan_count"], 6)
+
+    def test_blockchain_dashboard_returns_records(self):
+        record = {"id": "record-id", "record_type": "order"}
+        records_table = mock_table([record])
+        with patch("app.api.v1.admin.supabase") as supabase_mock:
+            supabase_mock.table.return_value = records_table
+            response = client.get("/api/v1/admin/blockchain/all")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [record])
+
+
+class TestNotificationRoutes(unittest.TestCase):
+    def setUp(self):
+        api.dependency_overrides[get_current_user] = lambda: {
+            "sub": "user-id",
+            "role": "farmer",
+        }
+
+    def tearDown(self):
+        api.dependency_overrides.pop(get_current_user, None)
+
+    def test_notifications_are_loaded_for_the_authenticated_user(self):
+        notification = {
+            "id": "notification-id",
+            "user_id": "user-id",
+            "title": "Farm update",
+            "is_read": False,
+        }
+        table = mock_table([notification])
+        with patch("app.api.v1.notifications.supabase") as supabase_mock:
+            supabase_mock.table.return_value = table
+            response = client.get("/api/v1/notifications/?only_unread=true")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [notification])
+        table.eq.assert_any_call("user_id", "user-id")
+        table.eq.assert_any_call("is_read", False)
 
 
 class TestLivestockRecordRoutes(unittest.TestCase):
