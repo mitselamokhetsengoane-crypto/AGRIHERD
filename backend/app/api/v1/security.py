@@ -74,7 +74,8 @@ def update_system_setting(setting_key: str, body: SettingUpdate, current_user: d
 
 @router.get("/audit-logs")
 def get_audit_logs(current_user: dict = Depends(require_role("admin"))):
-    return supabase.table("audit_logs").select("*").order("created_at", desc=True).limit(200).execute().data or []
+    # Use the AuditService to ensure it handles empty tables gracefully
+    return AuditService.get_logs(limit=200)
 
 
 @router.post("/audit-logs", status_code=201)

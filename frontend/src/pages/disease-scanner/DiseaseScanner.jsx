@@ -35,15 +35,20 @@ const DiseaseScanner = () => {
         setError('The scan was completed, but its saved result ID was missing.');
         return;
       }
-      navigate(`/disease-scanner/results/${encodeURIComponent(scan.id)}`);
+      // Fixed path to match AppRoutes
+      navigate(`/app/disease-scanner/results/${encodeURIComponent(scan.id)}`);
     } catch (err) {
       const detail = err.response?.data?.detail;
-      if (typeof detail === 'string') {
+      const status = err.response?.status;
+
+      if (status === 503) {
+        setError('The AI service is currently waking up from sleep mode. Please wait 1-2 minutes and click "Try again".');
+      } else if (typeof detail === 'string') {
         setError(detail);
-      } else if (err.response?.status === 401) {
+      } else if (status === 401) {
         setError('Your session has expired. Please log in again before scanning.');
       } else if (err.response) {
-        setError(`The scan failed (HTTP ${err.response.status}). Please try again.`);
+        setError(`The scan failed (HTTP ${status}). Please try again.`);
       } else {
         setError('Could not reach the scan service. Check your connection and try again.');
       }
@@ -57,7 +62,7 @@ const DiseaseScanner = () => {
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-maintext">Disease Scanner</h1>
-        <Link to="/disease-scanner/history" className="text-primary hover:underline text-sm font-medium">Scan History</Link>
+        <Link to="/app/disease-scanner/history" className="text-primary hover:underline text-sm font-medium">Scan History</Link>
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6">

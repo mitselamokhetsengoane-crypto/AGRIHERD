@@ -57,8 +57,6 @@ import Categories from '../pages/marketplace/Categories';
 import BuyerDashboard from '../pages/buyer/BuyerDashboard';
 
 import AdminDashboard from '../pages/admin/AdminDashboard';
-import AdminAIDashboard from '../pages/admin/AdminAIDashboard';
-import AdminBlockchain from '../pages/admin/AdminBlockchain';
 import FarmManagement from '../pages/admin/FarmManagement';
 import MarketplaceMonitor from '../pages/admin/MarketplaceMonitor';
 import UserManagement from '../pages/security/UserManagement';
@@ -66,7 +64,6 @@ import RolesPermissions from '../pages/security/RolesPermissions';
 import DataClassification from '../pages/security/DataClassification';
 import AuditLogs from '../pages/security/AuditLogs';
 import SecuritySettings from '../pages/security/SecuritySettings';
-import BlockchainMonitor from '../pages/admin/BlockchainMonitor';
 
 const LegacyAppRedirect = () => {
   const { pathname, search, hash } = useLocation();
@@ -83,7 +80,9 @@ const AppRoutes = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
-      {/* FARMER ONLY */}
+      {/* =========================================
+          FARMER ONLY
+          ========================================= */}
       <Route element={<ProtectedRoute allowedRoles={['farmer']} />}>
         <Route path="/app" element={<MainLayout />}>
           <Route index element={<Navigate to="/app/dashboard" replace />} />
@@ -121,28 +120,28 @@ const AppRoutes = () => {
           <Route path="marketplace/listings/add" element={<AddListing />} />
           <Route path="marketplace/listings/edit/:id" element={<AddListing />} />
           <Route path="marketplace/orders" element={<OrdersReceived />} />
-          <Route path="marketplace/orders/:id" element={<OrderDetails />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="profile" element={<Profile />} />
-          
-          {/* Market routed inside Farmer layout to keep sidebar/footer */}
+
+          {/* Farmer Marketplace Routes */}
           <Route path="marketplace" element={<Marketplace />} />
           <Route path="marketplace/product/:id" element={<ProductDetails />} />
           <Route path="marketplace/cart" element={<Cart />} />
           <Route path="marketplace/checkout" element={<Checkout />} />
           <Route path="marketplace/order-confirmation" element={<OrderConfirmation />} />
-          <Route path="marketplace/orders" element={<MyOrders />} />
           <Route path="marketplace/orders/:id" element={<OrderDetails />} />
         </Route>
         <Route path="/:legacyPath/*" element={<LegacyAppRedirect />} />
       </Route>
 
-      {/* BUYER ONLY */}
+      {/* =========================================
+          BUYER ONLY (Fixed: Everything nested here)
+          ========================================= */}
       <Route element={<ProtectedRoute allowedRoles={['buyer']} />}>
         <Route path="/buyer" element={<BuyerLayout />}>
           <Route index element={<Navigate to="/buyer/dashboard" replace />} />
           <Route path="dashboard" element={<BuyerDashboard />} />
-          {/* Market routed inside Buyer layout to keep sidebar/footer */}
+          
           <Route path="marketplace" element={<Marketplace />} />
           <Route path="marketplace/product/:id" element={<ProductDetails />} />
           <Route path="marketplace/cart" element={<Cart />} />
@@ -150,17 +149,19 @@ const AppRoutes = () => {
           <Route path="marketplace/order-confirmation" element={<OrderConfirmation />} />
           <Route path="marketplace/orders" element={<MyOrders />} />
           <Route path="marketplace/orders/:id" element={<OrderDetails />} />
+          
+          <Route path="notifications" element={<Notifications />} />
           <Route path="profile" element={<Profile />} />
         </Route>
       </Route>
 
-      {/* ADMIN */}
+      {/* =========================================
+          ADMIN
+          ========================================= */}
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="ai" element={<AdminAIDashboard />} />
-          <Route path="blockchain" element={<AdminBlockchain />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="farms" element={<FarmManagement />} />
           <Route path="marketplace" element={<MarketplaceMonitor />} />
@@ -170,7 +171,6 @@ const AppRoutes = () => {
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="settings" element={<SecuritySettings />} />
           <Route path="profile" element={<Profile />} />
-          <Route path="blockchain" element={<BlockchainMonitor />} />
         </Route>
       </Route>
 

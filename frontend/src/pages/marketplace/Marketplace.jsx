@@ -85,8 +85,7 @@ const Marketplace = () => {
           ))}
         </div>
       )}
-      <Footer /> {/* ADDED */}
-    </div>
+        </div>
   );
 };
 
