@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+from urllib.parse import urlparse
 
 from supabase import Client, create_client
 
@@ -47,8 +48,12 @@ def _validate_configuration() -> str:
     settings.SUPABASE_SERVICE_ROLE_KEY = settings.SUPABASE_SERVICE_ROLE_KEY.strip()
 
     role = key_role(settings.SUPABASE_SERVICE_ROLE_KEY)
+    project_host = urlparse(settings.SUPABASE_URL).hostname or "unknown"
     if role == "service_role":
-        logger.info("Supabase client ready (server key role: service_role).")
+        logger.info(
+            "Supabase client ready (server key role: service_role, project host: %s).",
+            project_host,
+        )
     else:
         logger.error(
             "SUPABASE_SERVICE_ROLE_KEY contains a key with role '%s', NOT a service_role key. "
