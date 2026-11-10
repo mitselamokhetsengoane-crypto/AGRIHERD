@@ -105,28 +105,22 @@ def update_stock(item_id: str, data: dict, current_user: dict = Depends(get_curr
         raise HTTPException(status_code=422, detail="Stock quantity cannot be negative")
 
     minimum_stock = float(item.get("minimum_stock_level") or 0)
-    updated = (
-        supabase.table("inventory")
-        .update({
-            "quantity": new_quantity,
-            "stock_status": "Low Stock" if new_quantity <= minimum_stock else "In Stock",
-        })
-        .eq("id", item_id)
-        .eq("user_id", current_user["sub"])
-        .execute()
-    )
-    supabase.table("inventory_transactions").insert({
-        "item_id": item_id,
-        "item_name": item["name"],
-        "change_amount": change_amount,
-        "reason": data.get("reason"),
-    }).execute()
+    updated = supabase.rpc(
+        "update_inventory_stock",
+        {
+            "p_item_id": item_id,
+            "p_user_id": current_user["sub"],
+            "p_change_amount": change_amount,
+            "p_reason": data.get("reason"),
+        },
+    ).execute()
+    updated_item = updated.data[0]
     AuditService.log(
         current_user["sub"],
         "UPDATE_INVENTORY_STOCK",
-        f"Updated stock for {item['name']} to {new_quantity:g}",
+        f"Updated stock for {item['name']} to {updated_item['quantity']:g}",
     )
-    return updated.data[0]
+    return updated_item
 
 @router.delete("/{item_id}")
 def delete_item(item_id: str, current_user: dict = Depends(get_current_user)):

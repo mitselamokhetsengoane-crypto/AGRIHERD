@@ -101,6 +101,70 @@ class TestMissingApiRoutes(unittest.TestCase):
             "https://agriherd-1.onrender.com",
         )
 
+
+class TestInventoryStockRoute(unittest.TestCase):
+    def setUp(self):
+        api.dependency_overrides[get_current_user] = lambda: {"sub": "user-id"}
+
+    def tearDown(self):
+        api.dependency_overrides.pop(get_current_user, None)
+
+    def test_stock_update_uses_atomic_inventory_rpc(self):
+        item = {
+            "id": "item-id",
+            "user_id": "user-id",
+            "name": "maize",
+            "quantity": 250.1,
+            "minimum_stock_level": 20.1,
+        }
+        updated_item = {**item, "quantity": 241.1, "stock_status": "In Stock"}
+        table = mock_table([item])
+
+        with (
+            patch("app.api.v1.inventory.supabase") as supabase_mock,
+            patch("app.api.v1.inventory.AuditService.log"),
+        ):
+            supabase_mock.table.return_value = table
+            supabase_mock.rpc.return_value.execute.return_value = SimpleNamespace(
+                data=[updated_item]
+            )
+            response = client.post(
+                "/api/v1/inventory/item-id/stock",
+                json={"change_amount": -9, "reason": "sold"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["quantity"], 241.1)
+        supabase_mock.rpc.assert_called_once_with(
+            "update_inventory_stock",
+            {
+                "p_item_id": "item-id",
+                "p_user_id": "user-id",
+                "p_change_amount": -9.0,
+                "p_reason": "sold",
+            },
+        )
+
+    def test_stock_update_rejects_negative_result_without_writing(self):
+        item = {
+            "id": "item-id",
+            "user_id": "user-id",
+            "name": "maize",
+            "quantity": 2,
+            "minimum_stock_level": 0,
+        }
+        table = mock_table([item])
+
+        with patch("app.api.v1.inventory.supabase") as supabase_mock:
+            supabase_mock.table.return_value = table
+            response = client.post(
+                "/api/v1/inventory/item-id/stock",
+                json={"change_amount": -9, "reason": "sold"},
+            )
+
+        self.assertEqual(response.status_code, 422)
+        supabase_mock.rpc.assert_not_called()
+
     def test_cors_preflight_allows_production_frontend(self):
         response = client.options(
             "/api/v1/crops/crop-id/plantings",

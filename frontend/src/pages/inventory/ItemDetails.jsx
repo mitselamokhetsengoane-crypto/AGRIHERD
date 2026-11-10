@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import inventoryService from '../../services/inventoryService';
+import { getErrorMessage } from '../../services/api';
 import { formatDate, getStatusColor } from '../../utils/formatters';
 
 const ItemDetails = () => {
@@ -10,6 +11,7 @@ const ItemDetails = () => {
   const [loading, setLoading] = useState(true);
   const [updateAmount, setUpdateAmount] = useState('');
   const [reason, setReason] = useState('');
+  const [savingStock, setSavingStock] = useState(false);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -27,11 +29,19 @@ const ItemDetails = () => {
 
   const handleUpdateStock = async (e) => {
     e.preventDefault();
+    setSavingStock(true);
     try {
-      await inventoryService.updateStock(id, { change_amount: parseFloat(updateAmount), reason });
-      window.location.reload(); // Quick refresh to show new quantity
+      const updatedItem = await inventoryService.updateStock(id, {
+        change_amount: parseFloat(updateAmount),
+        reason,
+      });
+      setItem(updatedItem);
+      setUpdateAmount('');
+      setReason('');
     } catch (error) {
-      alert("Failed to update stock.");
+      alert(getErrorMessage(error, "Failed to update stock."));
+    } finally {
+      setSavingStock(false);
     }
   };
 
@@ -79,7 +89,9 @@ const ItemDetails = () => {
             <label className="block text-sm text-subtext mb-1">Reason</label>
             <input required type="text" className="w-full border border-gray-300 rounded-md px-4 py-2" value={reason} onChange={e => setReason(e.target.value)} />
           </div>
-          <button type="submit" className="bg-primary text-white px-6 py-2 rounded-md hover:bg-green-800 transition h-[42px]">Update</button>
+          <button disabled={savingStock} type="submit" className="bg-primary text-white px-6 py-2 rounded-md hover:bg-green-800 transition h-[42px] disabled:opacity-50">
+            {savingStock ? 'Updating...' : 'Update'}
+          </button>
         </form>
       </div>
 
