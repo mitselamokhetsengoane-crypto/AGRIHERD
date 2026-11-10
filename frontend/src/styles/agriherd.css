@@ -223,12 +223,15 @@ h1, h2, h3, h4, h5, h6, p {
 .layout--buyer  { --accent: var(--accent-buyer); }
 .layout--admin  { --accent: var(--accent-admin); }
 
+/* MAIN APP SHELL - Fixed Height to prevent whole page shaking */
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--bg);
 }
 
+/* FIXED SIDEBAR */
 .sidebar {
   width: 260px;
   flex-shrink: 0;
@@ -236,15 +239,20 @@ h1, h2, h3, h4, h5, h6, p {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  height: 100vh;
 }
 
+/* MAIN CONTENT WRAPPER - flex column */
 .main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100vh;
+  overflow: hidden;
 }
 
+/* HEADER - fixed at top */
 .page-header {
   height: 64px;
   flex-shrink: 0;
@@ -255,12 +263,14 @@ h1, h2, h3, h4, h5, h6, p {
   padding: 0 var(--space-5);
 }
 
+/* SCROLLABLE BODY - only this part moves */
 .page-body {
   flex: 1;
   padding: var(--space-5);
   overflow-y: auto;
 }
 
+/* FOOTER - fixed at bottom */
 .page-footer {
   flex-shrink: 0;
   background: var(--white);
@@ -280,6 +290,7 @@ h1, h2, h3, h4, h5, h6, p {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  overflow-y: auto;
 }
 
 .nav__item {

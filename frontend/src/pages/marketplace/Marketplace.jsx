@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import marketplaceService from '../../services/marketplaceService';
 import { formatCurrency } from '../../utils/formatters';
+import Footer from '../../components/common/Footer'; // ADDED
 
 const Marketplace = () => {
   const [products, setProducts] = useState([]);
@@ -84,6 +85,7 @@ const Marketplace = () => {
           ))}
         </div>
       )}
+      <Footer /> {/* ADDED */}
     </div>
   );
 };

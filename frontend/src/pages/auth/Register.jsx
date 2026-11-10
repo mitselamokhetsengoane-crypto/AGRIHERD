@@ -77,8 +77,8 @@ const Register = () => {
   const updateField = (field) => (e) => setFormData({ ...formData, [field]: e.target.value });
 
   return (
-    <div className="min-h-screen bg-[#F5F9F5] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
+    <div className="bg-[#F5F9F5] flex items-center justify-center px-4 py-12 min-h-screen h-auto overflow-y-auto">
+      <div className="w-full max-w-md my-auto">
         <div className="text-center mb-8">
           <img src="/logo.jpeg" alt="AgriHerd" className="w-16 h-16 rounded-full object-cover mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-[#1B1B1B]">Create Account</h1>
@@ -177,9 +177,9 @@ const Register = () => {
                 />
                 <span className="text-sm text-[#1B1B1B]">
                   I have read and accept the{' '}
-                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#2E7D32] font-medium hover:underline">
+                  <Link to="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#2E7D32] font-medium hover:underline">
                     Privacy Policy
-                  </a>{' '}
+                  </Link>{' '}
                   and the Terms of Service.
                 </span>
               </label>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { formatDate } from '../../utils/formatters';
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
@@ -8,10 +9,17 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
 
+  // 1. Dynamic Greeting based on the local time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // One endpoint to rule them all - this fetches summary counts from DB
         const response = await api.get('/dashboard/summary');
         setData(response.data);
       } catch (error) {
@@ -47,7 +55,6 @@ const Dashboard = () => {
     );
   }
 
-  // If no data from backend yet, show empty states
   const summary = data || {
     livestock_count: 0,
     crop_count: 0,
@@ -61,7 +68,7 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold text-maintext">Good Morning, Farmer</h1>
+          <h1 className="text-3xl font-bold text-maintext">{getGreeting()}, Farmer</h1>
           <p className="text-subtext mt-1">Here is what is happening on your farm today.</p>
         </div>
         <Link to="/tasks" className="bg-primary text-white px-4 py-2 rounded-md hover:bg-green-800 transition">
@@ -69,7 +76,6 @@ const Dashboard = () => {
         </Link>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center">
           <p className="text-sm text-subtext mb-1">Livestock</p>
@@ -90,7 +96,6 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 col-span-1">
           <h3 className="font-bold text-maintext mb-4">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-3">
@@ -101,7 +106,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Recent Activity */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 col-span-1 lg:col-span-2">
           <h3 className="font-bold text-maintext mb-4">Recent Activity</h3>
           {summary.recent_activity.length === 0 ? (
@@ -111,7 +115,7 @@ const Dashboard = () => {
               {summary.recent_activity.map((activity, idx) => (
                 <div key={idx} className="flex justify-between items-center border-b border-gray-50 pb-2">
                   <span className="text-sm text-maintext">{activity.description}</span>
-                  <span className="text-xs text-subtext">{activity.time}</span>
+                  <span className="text-xs text-subtext">{formatDate(activity.time)}</span>
                 </div>
               ))}
             </div>

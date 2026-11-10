@@ -121,6 +121,15 @@ const AppRoutes = () => {
           <Route path="marketplace/orders/:id" element={<OrderDetails />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="profile" element={<Profile />} />
+          
+          {/* Market routed inside Farmer layout to keep sidebar/footer */}
+          <Route path="marketplace" element={<Marketplace />} />
+          <Route path="marketplace/product/:id" element={<ProductDetails />} />
+          <Route path="marketplace/cart" element={<Cart />} />
+          <Route path="marketplace/checkout" element={<Checkout />} />
+          <Route path="marketplace/order-confirmation" element={<OrderConfirmation />} />
+          <Route path="marketplace/orders" element={<MyOrders />} />
+          <Route path="marketplace/orders/:id" element={<OrderDetails />} />
         </Route>
         <Route path="/:legacyPath/*" element={<LegacyAppRedirect />} />
       </Route>
@@ -130,18 +139,16 @@ const AppRoutes = () => {
         <Route path="/buyer" element={<BuyerLayout />}>
           <Route index element={<Navigate to="/buyer/dashboard" replace />} />
           <Route path="dashboard" element={<BuyerDashboard />} />
+          {/* Market routed inside Buyer layout to keep sidebar/footer */}
+          <Route path="marketplace" element={<Marketplace />} />
+          <Route path="marketplace/product/:id" element={<ProductDetails />} />
+          <Route path="marketplace/cart" element={<Cart />} />
+          <Route path="marketplace/checkout" element={<Checkout />} />
+          <Route path="marketplace/order-confirmation" element={<OrderConfirmation />} />
+          <Route path="marketplace/orders" element={<MyOrders />} />
+          <Route path="marketplace/orders/:id" element={<OrderDetails />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
-      </Route>
-
-      {/* MARKETPLACE — farmer + buyer */}
-      <Route element={<ProtectedRoute allowedRoles={['farmer', 'buyer']} />}>
-        <Route path="/marketplace" element={<Marketplace />} />
-        <Route path="/marketplace/product/:id" element={<ProductDetails />} />
-        <Route path="/marketplace/cart" element={<Cart />} />
-        <Route path="/marketplace/checkout" element={<Checkout />} />
-        <Route path="/marketplace/order-confirmation" element={<OrderConfirmation />} />
-        <Route path="/marketplace/orders" element={<MyOrders />} />
-        <Route path="/marketplace/orders/:id" element={<OrderDetails />} />
       </Route>
 
       {/* ADMIN */}
@@ -157,6 +164,7 @@ const AppRoutes = () => {
           <Route path="classification" element={<DataClassification />} />
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="settings" element={<SecuritySettings />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
       </Route>
 

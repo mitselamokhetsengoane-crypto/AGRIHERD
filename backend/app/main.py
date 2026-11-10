@@ -57,6 +57,8 @@ mount("marketplace", "/api/v1/marketplace", "Marketplace")
 mount("security", "/api/v1/security", "Security")
 mount("notifications", "/api/v1/notifications", "Notifications")
 mount("dashboard", "/api/v1/dashboard", "Dashboard")
+mount("admin", "/api/v1/admin", "Admin") # <--- THIS WAS MISSING
+mount("farms", "/api/v1/farms", "Farms") # <--- ADDED FOR MULTIPLE FARMS
 
 mount("disease_scanner", "/api/v1/disease-scanner", "Disease Scanner", optional=True)
 mount("ai_wake", "/api/v1/ai", "AI Wake", optional=True)
