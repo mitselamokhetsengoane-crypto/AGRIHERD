@@ -205,6 +205,24 @@ def _raise_marketplace_rpc_error(exc: Exception, operation: str) -> None:
                 "then reload the API schema cache or restart the backend."
             ),
         ) from exc
+    if (
+        "pgrst205" in lowered
+        or "could not find the table" in lowered
+        or "42p01" in lowered
+        or "42703" in lowered
+        or "undefined table" in lowered
+        or "undefined column" in lowered
+    ):
+        logger.error("%s failed because the marketplace schema is incomplete: %s", operation, message)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The Supabase marketplace schema is incomplete. Apply migrations "
+                "database/migrations/002_cart_orders.sql and "
+                "database/migrations/011_buyer_marketplace_checkout.sql, then reload "
+                "the Supabase API schema cache."
+            ),
+        ) from exc
     if "cart item not found" in lowered or "product not found" in lowered:
         raise HTTPException(status_code=404, detail="Cart item or product not found.") from exc
     if "not enough stock" in lowered or "no longer has enough stock" in lowered:
@@ -219,6 +237,14 @@ def _raise_marketplace_rpc_error(exc: Exception, operation: str) -> None:
         raise HTTPException(status_code=409, detail="This checkout is already being processed.") from exc
     logger.error("%s failed: %s", operation, exc)
     raise HTTPException(status_code=500, detail=f"{operation} failed.") from exc
+
+
+def _updated_cart(cart_id: str, operation: str) -> dict:
+    try:
+        return _cart_with_items(cart_id)
+    except Exception as exc:
+        logger.exception("%s succeeded but its cart response could not be loaded", operation)
+        _raise_marketplace_rpc_error(exc, f"{operation} cart refresh")
 
 
 @router.get("/categories")
@@ -457,7 +483,7 @@ def add_to_cart(body: AddToCart, current_user: dict = Depends(get_current_user))
             status_code=502,
             detail="The marketplace database did not return the updated cart.",
         )
-    return _cart_with_items(str(response.data))
+    return _updated_cart(str(response.data), "Adding product")
 
 
 @router.put("/cart/{item_id}")
@@ -474,7 +500,7 @@ def update_cart_item(item_id: str, body: UpdateCartItem, current_user: dict = De
         ).execute()
     except Exception as exc:
         _raise_marketplace_rpc_error(exc, "Updating cart quantity")
-    return _cart_with_items(str(response.data))
+    return _updated_cart(str(response.data), "Updating cart quantity")
 
 
 @router.delete("/cart/{item_id}")

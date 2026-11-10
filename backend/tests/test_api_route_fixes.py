@@ -235,6 +235,22 @@ class TestMarketplaceBuyerRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertIn("011_buyer_marketplace_checkout.sql", response.json()["detail"])
 
+    def test_add_to_cart_reports_missing_cart_table_after_rpc(self):
+        cart_items_table = mock_table([])
+        cart_items_table.execute.side_effect = Exception(
+            "PGRST205: Could not find the table public.cart_items in the schema cache"
+        )
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.rpc.return_value.execute.return_value.data = "cart-id"
+            supabase_mock.table.return_value = cart_items_table
+            response = client.post(
+                "/api/v1/marketplace/cart",
+                json={"product_id": "product-id", "quantity": 1},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("002_cart_orders.sql", response.json()["detail"])
+
     def test_cart_returns_buyer_items_and_calculated_totals(self):
         cart_table = mock_table([{"id": "cart-id", "buyer_id": "buyer-id"}])
         items_table = mock_table([{
