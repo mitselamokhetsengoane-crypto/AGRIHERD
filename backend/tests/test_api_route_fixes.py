@@ -377,6 +377,19 @@ class TestMarketplaceBuyerRoutes(unittest.TestCase):
         )
 
 
+class TestSupabaseConfiguration(unittest.TestCase):
+    def test_backend_rejects_non_service_role_key(self):
+        from app.database.connection import _validate_configuration
+
+        with patch("app.database.connection.settings.SUPABASE_URL", "https://example.supabase.co"):
+            with patch(
+                "app.database.connection.settings.SUPABASE_SERVICE_ROLE_KEY",
+                "sb_publishable_test_key",
+            ):
+                with self.assertRaisesRegex(RuntimeError, "must be a Supabase service-role key"):
+                    _validate_configuration()
+
+
 class TestMarketplaceImageUpload(unittest.TestCase):
     def setUp(self):
         api.dependency_overrides[get_current_user] = lambda: {

@@ -4,6 +4,7 @@ import marketplaceService from '../../services/marketplaceService';
 import { formatCurrency } from '../../utils/formatters';
 import { AuthContext } from '../../context/AuthContext';
 import { marketplaceBasePath } from '../../utils/marketplacePaths';
+import { getErrorMessage } from '../../services/api';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -45,7 +46,16 @@ const ProductDetails = () => {
       await marketplaceService.addToCart(product.id, quantity);
       navigate(`${marketplacePath}/cart`);
     } catch (err) {
-      setAddError(err.response?.data?.detail || 'Could not add to cart.');
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setAddError(detail);
+      } else if (err.response?.status === 503) {
+        setAddError(
+          'The cart service is unavailable. Verify the backend Supabase service-role key and cart RPC permissions.'
+        );
+      } else {
+        setAddError(getErrorMessage(err, 'Could not add to cart.'));
+      }
     } finally {
       setAdding(false);
     }

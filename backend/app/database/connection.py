@@ -56,6 +56,10 @@ def _validate_configuration() -> str:
             "Copy the 'service_role' (secret) key from Supabase > Project Settings > API.",
             role,
         )
+        raise RuntimeError(
+            "SUPABASE_SERVICE_ROLE_KEY must be a Supabase service-role key. "
+            "Set the matching service-role key for SUPABASE_URL in the Render environment."
+        )
     return role
 
 
