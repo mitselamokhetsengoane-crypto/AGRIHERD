@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from app.core.permissions import get_current_user
 from app.database.connection import supabase
+from app.services.audit_service import AuditService
 
 router = APIRouter()
 
@@ -55,7 +56,9 @@ def create_task(task: TaskCreate, current_user: dict = Depends(get_current_user)
     task_data["user_id"] = current_user["sub"]
     task_data["status"] = "Pending"
     response = supabase.table("tasks").insert(task_data).execute()
-    return response.data[0]
+    created = response.data[0]
+    AuditService.log(current_user["sub"], "CREATE_TASK", f"Added task {created.get('name', 'Task')}")
+    return created
 
 @router.patch("/{task_id}/complete")
 def complete_task(task_id: str, current_user: dict = Depends(get_current_user)):
@@ -68,7 +71,9 @@ def complete_task(task_id: str, current_user: dict = Depends(get_current_user)):
     )
     if not response.data:
         raise HTTPException(status_code=404, detail="Task not found")
-    return response.data[0]
+    completed = response.data[0]
+    AuditService.log(current_user["sub"], "COMPLETE_TASK", f"Completed task {completed.get('name', task_id)}")
+    return completed
 
 @router.delete("/{task_id}")
 def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
@@ -81,4 +86,5 @@ def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
     )
     if not response.data:
         raise HTTPException(status_code=404, detail="Task not found")
+    AuditService.log(current_user["sub"], "DELETE_TASK", f"Deleted task {response.data[0].get('name', task_id)}")
     return {"message": "Task deleted"}

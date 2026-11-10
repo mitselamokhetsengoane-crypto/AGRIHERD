@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { formatDate } from '../../utils/formatters';
+import LoadingIndicator from '../../components/common/LoadingIndicator';
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
@@ -35,7 +36,7 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [retry]);
 
-  if (loading) return <div className="p-8 text-center text-subtext">Loading dashboard...</div>;
+  if (loading) return <LoadingIndicator label="Loading your dashboard..." />;
   if (error) {
     return (
       <div role="alert" className="space-y-4 p-8 text-center text-error">

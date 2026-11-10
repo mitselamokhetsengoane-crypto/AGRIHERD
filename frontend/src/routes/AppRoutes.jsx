@@ -57,6 +57,8 @@ import Categories from '../pages/marketplace/Categories';
 import BuyerDashboard from '../pages/buyer/BuyerDashboard';
 
 import AdminDashboard from '../pages/admin/AdminDashboard';
+import AdminAIDashboard from '../pages/admin/AdminAIDashboard';
+import AdminBlockchain from '../pages/admin/AdminBlockchain';
 import FarmManagement from '../pages/admin/FarmManagement';
 import MarketplaceMonitor from '../pages/admin/MarketplaceMonitor';
 import UserManagement from '../pages/security/UserManagement';
@@ -156,6 +158,8 @@ const AppRoutes = () => {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="ai" element={<AdminAIDashboard />} />
+          <Route path="blockchain" element={<AdminBlockchain />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="farms" element={<FarmManagement />} />
           <Route path="marketplace" element={<MarketplaceMonitor />} />

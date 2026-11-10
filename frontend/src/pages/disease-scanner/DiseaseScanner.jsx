@@ -61,7 +61,17 @@ const DiseaseScanner = () => {
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6">
-        {error && <div className="bg-red-50 text-error p-3 rounded-md text-sm">{error}</div>}
+        {error && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-red-50 p-3 text-sm text-error">
+            <span>{error}</span>
+            {image && (
+              <button type="button" onClick={handleScan} disabled={loading}
+                className="rounded-md border border-red-200 bg-white px-3 py-1.5 font-medium text-red-700 hover:bg-red-100 disabled:opacity-60">
+                Try again
+              </button>
+            )}
+          </div>
+        )}
 
         <div 
           className="border-2 border-dashed border-gray-300 rounded-xl h-64 flex flex-col items-center justify-center bg-background cursor-pointer hover:border-primary transition"
@@ -90,7 +100,12 @@ const DiseaseScanner = () => {
           disabled={loading || !image}
           className="w-full bg-primary text-white py-3 rounded-md hover:bg-green-800 transition font-medium disabled:opacity-50"
         >
-          {loading ? (wakingServer ? 'Waking up scan service...' : 'Scanning Image...') : 'Scan Image'}
+          {loading ? (
+            <span role="status" className="inline-flex items-center justify-center gap-2">
+              <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
+              {wakingServer ? 'Waking up scan service...' : 'Scanning Image...'}
+            </span>
+          ) : 'Scan Image'}
         </button>
       </div>
     </div>

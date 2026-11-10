@@ -23,6 +23,7 @@ const securityService = {
 
   // Admin monitoring
   getAdminAISummary: async () => (await api.get('/admin/ai/summary')).data,
+  checkAdminAIService: async () => (await api.get('/ai/wake', { timeout: 50000 })).data,
   getAdminBlockchain: async () => (await api.get('/admin/blockchain/all')).data,
   getAdminAuditLogs: async () => (await api.get('/admin/audit-logs')).data,
 };

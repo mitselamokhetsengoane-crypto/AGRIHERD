@@ -8,6 +8,7 @@ from typing import Optional
 
 from app.core.permissions import get_current_user
 from app.database.connection import supabase
+from app.services.audit_service import AuditService
 
 router = APIRouter()
 
@@ -77,7 +78,9 @@ def add_income(data: TransactionCreate, current_user: dict = Depends(get_current
     row.setdefault("date", _today())
     row.setdefault("source", "MANUAL")
     resp = supabase.table("transactions").insert(row).execute()
-    return resp.data[0]
+    created = resp.data[0]
+    AuditService.log(current_user["sub"], "CREATE_INCOME", f"Recorded income of {created.get('amount', row['amount'])}")
+    return created
 
 
 @router.get("/expenses")
@@ -101,7 +104,9 @@ def add_expense(data: TransactionCreate, current_user: dict = Depends(get_curren
     row.setdefault("date", _today())
     row.setdefault("source", "MANUAL")
     resp = supabase.table("transactions").insert(row).execute()
-    return resp.data[0]
+    created = resp.data[0]
+    AuditService.log(current_user["sub"], "CREATE_EXPENSE", f"Recorded expense of {created.get('amount', row['amount'])}")
+    return created
 
 
 @router.put("/{transaction_id}")
@@ -122,7 +127,9 @@ def update_transaction(
     )
     if not resp.data:
         raise HTTPException(404, "Transaction not found.")
-    return resp.data[0]
+    updated = resp.data[0]
+    AuditService.log(current_user["sub"], "UPDATE_TRANSACTION", f"Updated transaction {transaction_id}")
+    return updated
 
 
 @router.delete("/{transaction_id}")
@@ -136,6 +143,7 @@ def delete_transaction(transaction_id: str, current_user: dict = Depends(get_cur
     )
     if not resp.data:
         raise HTTPException(404, "Transaction not found.")
+    AuditService.log(current_user["sub"], "DELETE_TRANSACTION", f"Deleted transaction {transaction_id}")
     return {"message": "Deleted"}
 
 

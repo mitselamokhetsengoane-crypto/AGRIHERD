@@ -17,13 +17,15 @@ body {
   color: var(--text-main);
   margin: 0;
   font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
 }
 
 /* Layout Fixes */
 .app-shell {
   display: flex;
   height: 100vh;
-  width: 100vw;
+  width: 100%;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -38,6 +40,7 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
   height: 100vh;
   overflow: hidden;
 }
@@ -50,6 +53,8 @@ body {
 .content-scrollable {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
   padding: 2rem;
 }
 

@@ -13,7 +13,6 @@ module.exports = {
     },
   },
   networks: {
-    // Local development network
     hardhat: {
       chainId: 31337,
     },
@@ -21,10 +20,12 @@ module.exports = {
       url: "http://127.0.0.1:8545",
       chainId: 31337,
     },
-    // Optional: Sepolia Testnet (requires .env file)
     sepolia: {
-      url: process.env.SEPOLIA_RPC_URL || "",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      url: process.env.SEPOLIA_RPC_URL ? process.env.SEPOLIA_RPC_URL.trim() : "https://ethereum-sepolia-rpc.publicnode.com",
+      // This line forcefully cleans the key: removes spaces, newlines, and '0x'
+      accounts: process.env.PRIVATE_KEY 
+        ? [process.env.PRIVATE_KEY.trim().replace("0x", "")] 
+        : [],
     },
   },
   paths: {

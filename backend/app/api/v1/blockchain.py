@@ -9,14 +9,14 @@ router = APIRouter()
 
 
 class RecordRequest(BaseModel):
-    record_type: str  # SALE, HARVEST, SCAN, TRANSFER
-    record_ref: str   # Internal DB ID
-    record_data: dict # The actual record data to hash
+    record_type: str
+    record_ref: str
+    record_data: dict
 
 
 @router.get("/status")
 def get_network_status():
-    """Check if blockchain is connected."""
+    """Check if blockchain is connected (Sepolia or Local)."""
     return blockchain_service.get_network_status()
 
 
@@ -31,11 +31,9 @@ def log_record_to_chain(
     request: RecordRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    """Submit a record hash to the blockchain."""
-    # 1. Generate keccak256 hash of the record data
+    """Submit a manual record hash to the blockchain."""
     record_hash = blockchain_service.generate_hash(request.record_data)
 
-    # 2. Log to blockchain
     result = blockchain_service.log_record(
         record_hash=record_hash,
         record_type=request.record_type,
@@ -45,7 +43,6 @@ def log_record_to_chain(
     if result.get("status") == "error":
         raise HTTPException(status_code=500, detail=result.get("message"))
 
-    # 3. Save blockchain reference to Supabase
     try:
         supabase.table("blockchain_records").insert({
             "user_id": current_user["sub"],
@@ -69,13 +66,13 @@ def log_record_to_chain(
 
 @router.get("/verify/{record_hash}")
 def verify_record(record_hash: str):
-    """Verify a record exists on the blockchain."""
+    """Query the actual blockchain network to verify a hash exists."""
     return blockchain_service.verify_record(record_hash)
 
 
 @router.get("/transactions")
 def get_blockchain_transactions(current_user: dict = Depends(get_current_user)):
-    """Get all blockchain transactions for current user."""
+    """Get all blockchain transactions for the logged-in user."""
     response = supabase.table("blockchain_records")\
         .select("*")\
         .eq("user_id", current_user["sub"])\

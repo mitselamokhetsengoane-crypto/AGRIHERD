@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.permissions import get_current_user
 from app.database.connection import supabase
+from app.services.audit_service import AuditService
 
 router = APIRouter()
 
@@ -21,7 +22,9 @@ def get_all_crops(current_user: dict = Depends(get_current_user)):
 def create_crop(crop: dict, current_user: dict = Depends(get_current_user)):
     crop["user_id"] = current_user["sub"]
     response = supabase.table("crops").insert(crop).execute()
-    return response.data[0]
+    created = response.data[0]
+    AuditService.log(current_user["sub"], "CREATE_CROP", f"Added crop {created.get('name', 'Crop')}")
+    return created
 
 
 @router.get("/{crop_id}")
@@ -38,7 +41,9 @@ def update_crop(crop_id: str, crop: dict, current_user: dict = Depends(get_curre
     response = supabase.table("crops").update(crop).eq("id", crop_id).eq("user_id", current_user["sub"]).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Crop not found.")
-    return response.data[0]
+    updated = response.data[0]
+    AuditService.log(current_user["sub"], "UPDATE_CROP", f"Updated crop {updated.get('name', crop_id)}")
+    return updated
 
 
 @router.delete("/{crop_id}")
@@ -46,6 +51,7 @@ def delete_crop(crop_id: str, current_user: dict = Depends(get_current_user)):
     response = supabase.table("crops").delete().eq("id", crop_id).eq("user_id", current_user["sub"]).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Crop not found.")
+    AuditService.log(current_user["sub"], "DELETE_CROP", f"Deleted crop {response.data[0].get('name', crop_id)}")
     return {"message": "Crop deleted"}
 
 
