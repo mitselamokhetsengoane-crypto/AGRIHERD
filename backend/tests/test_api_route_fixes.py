@@ -13,6 +13,7 @@ client = TestClient(app)
 
 def mock_table(data):
     table = MagicMock()
+    table.insert.return_value = table
     table.select.return_value = table
     table.eq.return_value = table
     table.gte.return_value = table
@@ -99,3 +100,101 @@ class TestMissingApiRoutes(unittest.TestCase):
             response.headers["access-control-allow-origin"],
             "https://agriherd-1.onrender.com",
         )
+
+
+class TestLivestockRecordRoutes(unittest.TestCase):
+    def setUp(self):
+        api.dependency_overrides[get_current_user] = lambda: {"sub": "user-id"}
+
+    def tearDown(self):
+        api.dependency_overrides.pop(get_current_user, None)
+
+    def test_health_record_is_saved(self):
+        table = mock_table([{"id": "record-id", "animal_id": "animal-id"}])
+        with (
+            patch("app.api.v1.livestock.LivestockService.get_by_id"),
+            patch("app.api.v1.livestock.supabase") as supabase_mock,
+        ):
+            supabase_mock.table.return_value = table
+            response = client.post(
+                "/api/v1/livestock/animal-id/health",
+                json={"date": "2026-11-10", "condition": "Healthy"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        table.insert.assert_called_once_with({
+            "date": "2026-11-10",
+            "condition": "Healthy",
+            "animal_id": "animal-id",
+        })
+
+    def test_vaccination_omits_empty_optional_due_date(self):
+        table = mock_table([{"id": "record-id", "animal_id": "animal-id"}])
+        with (
+            patch("app.api.v1.livestock.LivestockService.get_by_id"),
+            patch("app.api.v1.livestock.supabase") as supabase_mock,
+        ):
+            supabase_mock.table.return_value = table
+            response = client.post(
+                "/api/v1/livestock/animal-id/vaccinations",
+                json={
+                    "vaccine_name": "Vaccine",
+                    "date_administered": "2026-11-10",
+                    "next_due_date": "",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        table.insert.assert_called_once_with({
+            "vaccine_name": "Vaccine",
+            "date_administered": "2026-11-10",
+            "animal_id": "animal-id",
+        })
+
+    def test_feeding_record_is_saved(self):
+        table = mock_table([{"id": "record-id", "animal_id": "animal-id"}])
+        with (
+            patch("app.api.v1.livestock.LivestockService.get_by_id"),
+            patch("app.api.v1.livestock.supabase") as supabase_mock,
+        ):
+            supabase_mock.table.return_value = table
+            response = client.post(
+                "/api/v1/livestock/animal-id/feeding",
+                json={
+                    "date": "2026-11-10",
+                    "feed_type": "Hay",
+                    "quantity": "5 kg",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        table.insert.assert_called_once_with({
+            "date": "2026-11-10",
+            "feed_type": "Hay",
+            "quantity": "5 kg",
+            "animal_id": "animal-id",
+        })
+
+    def test_breeding_accepts_outcome_and_omits_empty_optional_dates(self):
+        table = mock_table([{"id": "record-id", "animal_id": "animal-id"}])
+        with (
+            patch("app.api.v1.livestock.LivestockService.get_by_id"),
+            patch("app.api.v1.livestock.supabase") as supabase_mock,
+        ):
+            supabase_mock.table.return_value = table
+            response = client.post(
+                "/api/v1/livestock/animal-id/breeding",
+                json={
+                    "breeding_date": "2026-11-10",
+                    "expected_birth_date": "",
+                    "actual_birth_date": "",
+                    "outcome": "Pregnant",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        table.insert.assert_called_once_with({
+            "breeding_date": "2026-11-10",
+            "outcome": "Pregnant",
+            "animal_id": "animal-id",
+        })

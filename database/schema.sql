@@ -125,8 +125,10 @@ CREATE TABLE public.breeding_records (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     animal_id UUID NOT NULL REFERENCES public.livestock(id) ON DELETE CASCADE,
     status VARCHAR(50),
+    outcome VARCHAR(100),
     breeding_date DATE,
     expected_birth_date DATE,
+    actual_birth_date DATE,
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -365,6 +367,10 @@ CREATE TABLE public.privacy_requests (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.farms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.livestock ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.animal_health_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vaccination_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.feeding_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.breeding_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.crops ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
@@ -384,6 +390,54 @@ CREATE POLICY "Admins can view all profiles" ON public.profiles FOR SELECT USING
 
 -- Livestock: users can only access their own animals
 CREATE POLICY "Users can access own livestock" ON public.livestock FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can access own animal health records" ON public.animal_health_records FOR ALL
+USING (EXISTS (
+    SELECT 1 FROM public.livestock
+    WHERE livestock.id = animal_health_records.animal_id
+      AND livestock.user_id = auth.uid()
+))
+WITH CHECK (EXISTS (
+    SELECT 1 FROM public.livestock
+    WHERE livestock.id = animal_health_records.animal_id
+      AND livestock.user_id = auth.uid()
+));
+
+CREATE POLICY "Users can access own vaccination records" ON public.vaccination_records FOR ALL
+USING (EXISTS (
+    SELECT 1 FROM public.livestock
+    WHERE livestock.id = vaccination_records.animal_id
+      AND livestock.user_id = auth.uid()
+))
+WITH CHECK (EXISTS (
+    SELECT 1 FROM public.livestock
+    WHERE livestock.id = vaccination_records.animal_id
+      AND livestock.user_id = auth.uid()
+));
+
+CREATE POLICY "Users can access own feeding records" ON public.feeding_records FOR ALL
+USING (EXISTS (
+    SELECT 1 FROM public.livestock
+    WHERE livestock.id = feeding_records.animal_id
+      AND livestock.user_id = auth.uid()
+))
+WITH CHECK (EXISTS (
+    SELECT 1 FROM public.livestock
+    WHERE livestock.id = feeding_records.animal_id
+      AND livestock.user_id = auth.uid()
+));
+
+CREATE POLICY "Users can access own breeding records" ON public.breeding_records FOR ALL
+USING (EXISTS (
+    SELECT 1 FROM public.livestock
+    WHERE livestock.id = breeding_records.animal_id
+      AND livestock.user_id = auth.uid()
+))
+WITH CHECK (EXISTS (
+    SELECT 1 FROM public.livestock
+    WHERE livestock.id = breeding_records.animal_id
+      AND livestock.user_id = auth.uid()
+));
 
 -- Crops: users can only access their own crops
 CREATE POLICY "Users can access own crops" ON public.crops FOR ALL USING (auth.uid() = user_id);

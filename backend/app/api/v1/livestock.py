@@ -99,6 +99,8 @@ def get_vaccinations(animal_id: str, current_user: dict = Depends(get_current_us
 def add_vaccination(animal_id: str, data: VaccinationCreate, current_user: dict = Depends(get_current_user)):
     LivestockService.get_by_id(animal_id, current_user["sub"])
     row = data.dict(exclude_none=True)
+    if not row.get("next_due_date"):
+        row.pop("next_due_date", None)
     row["animal_id"] = animal_id
     resp = supabase.table("vaccination_records").insert(row).execute()
     return resp.data[0]
@@ -129,6 +131,9 @@ def get_breeding_records(animal_id: str, current_user: dict = Depends(get_curren
 def add_breeding_record(animal_id: str, data: BreedingCreate, current_user: dict = Depends(get_current_user)):
     LivestockService.get_by_id(animal_id, current_user["sub"])
     row = data.dict(exclude_none=True)
+    for field in ("expected_birth_date", "actual_birth_date"):
+        if not row.get(field):
+            row.pop(field, None)
     row["animal_id"] = animal_id
     resp = supabase.table("breeding_records").insert(row).execute()
     return resp.data[0]
