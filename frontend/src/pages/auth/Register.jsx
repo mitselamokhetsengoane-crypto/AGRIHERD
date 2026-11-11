@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import BackButton from '../../components/common/BackButton';
-
-const CURRENT_PRIVACY_VERSION = '1.0';
+import Footer from '../../components/common/Footer';
+import { LEGAL_DOCUMENT_VERSION } from '../legal/LegalPages';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -58,7 +58,7 @@ const Register = () => {
         password: formData.password,
         role: formData.role,
         consent_given: true,
-        consent_version: CURRENT_PRIVACY_VERSION,
+        consent_version: LEGAL_DOCUMENT_VERSION,
       };
       if (formData.role === 'farmer') {
         payload.farm_name = formData.farm_name.trim();
@@ -77,6 +77,7 @@ const Register = () => {
   const updateField = (field) => (e) => setFormData({ ...formData, [field]: e.target.value });
 
   return (
+    <>
     <div className="bg-[#F5F9F5] flex items-center justify-center px-4 py-12 min-h-screen h-auto overflow-y-auto">
       <div className="w-full max-w-md my-auto">
         <div className="text-center mb-8">
@@ -171,16 +172,20 @@ const Register = () => {
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
+                  required
                   checked={consent}
                   onChange={(e) => setConsent(e.target.checked)}
                   className="mt-1 h-4 w-4 text-[#2E7D32] focus:ring-[#2E7D32] border-gray-300 rounded"
                 />
                 <span className="text-sm text-[#1B1B1B]">
-                  I have read and accept the{' '}
-                  <Link to="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#2E7D32] font-medium hover:underline">
-                    Privacy Policy
+                  I agree to the{' '}
+                  <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-[#2E7D32] font-medium hover:underline">
+                    Terms of Service
                   </Link>{' '}
-                  and the Terms of Service.
+                  and{' '}
+                  <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-[#2E7D32] font-medium hover:underline">
+                    Privacy Policy
+                  </Link>.
                 </span>
               </label>
             </div>
@@ -202,6 +207,8 @@ const Register = () => {
         </div>
       </div>
     </div>
+    <Footer />
+    </>
   );
 };
 

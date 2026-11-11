@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import authService from '../../services/authService';
 import BackButton from '../../components/common/BackButton';
+import Footer from '../../components/common/Footer';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -21,6 +22,7 @@ const ForgotPassword = () => {
   };
 
   return (
+    <>
     <div className="min-h-screen bg-[#F5F9F5] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
@@ -61,6 +63,8 @@ const ForgotPassword = () => {
         </div>
       </div>
     </div>
+    <Footer />
+    </>
   );
 };
 

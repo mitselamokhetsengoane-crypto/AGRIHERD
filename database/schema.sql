@@ -715,3 +715,9 @@ REVOKE ALL ON FUNCTION public.checkout_marketplace_cart(UUID, UUID, TEXT, TEXT, 
 GRANT EXECUTE ON FUNCTION public.add_marketplace_cart_item(UUID, UUID, NUMERIC) TO service_role;
 GRANT EXECUTE ON FUNCTION public.set_marketplace_cart_item_quantity(UUID, UUID, NUMERIC) TO service_role;
 GRANT EXECUTE ON FUNCTION public.checkout_marketplace_cart(UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT) TO service_role;
+
+-- Recreating public removes Supabase's default grants; restore backend access.
+GRANT USAGE ON SCHEMA public TO service_role;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;

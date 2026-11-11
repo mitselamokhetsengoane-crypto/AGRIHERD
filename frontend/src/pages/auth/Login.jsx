@@ -4,6 +4,7 @@ import { AuthContext } from '../../context/AuthContext';
 import authService from '../../services/authService';
 import BackButton from '../../components/common/BackButton';
 import { getErrorMessage } from '../../services/api';
+import Footer from '../../components/common/Footer';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -25,13 +26,22 @@ const Login = () => {
       else if (data.user.role === 'buyer') navigate('/buyer/dashboard');
       else navigate('/app/dashboard');
     } catch (err) {
-      setError(getErrorMessage(err, 'Invalid email or password.'));
+      if (err.response?.status === 401) {
+        setError('Invalid email or password.');
+      } else if (err.response?.status === 403 || err.response?.status === 429) {
+        setError(err.response.data?.detail || 'Sign in is temporarily unavailable.');
+      } else if (err.response?.status >= 500) {
+        setError('The service is temporarily unavailable. Please try again shortly.');
+      } else {
+        setError(getErrorMessage(err, 'Unable to sign in. Please try again.'));
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
+    <>
     <div className="auth-shell">
       <div className="auth-card">
         <div className="auth-header">
@@ -97,6 +107,8 @@ const Login = () => {
         </div>
       </div>
     </div>
+    <Footer />
+    </>
   );
 };
 

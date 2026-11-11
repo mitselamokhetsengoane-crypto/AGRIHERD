@@ -23,6 +23,8 @@ const SecuritySettings = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(null);
+  const [schemaHealth, setSchemaHealth] = useState(null);
+  const [schemaHealthError, setSchemaHealthError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,7 +40,19 @@ const SecuritySettings = () => {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadSchemaHealth = useCallback(async () => {
+    setSchemaHealthError('');
+    try {
+      setSchemaHealth(await securityService.getSystemHealth());
+    } catch (healthError) {
+      setSchemaHealthError(healthError.response?.data?.detail || 'Could not check database readiness.');
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    loadSchemaHealth();
+  }, [load, loadSchemaHealth]);
 
   const handleToggle = async (key, current) => {
     setSaving(key);
@@ -76,11 +90,34 @@ const SecuritySettings = () => {
           <h1 className="text-2xl font-bold text-gray-800">Security Settings</h1>
           <p className="text-gray-500 mt-1">System security policies. All values are stored in the database and enforced by the backend where applicable.</p>
         </div>
-        <button type="button" onClick={load} disabled={loading}
+        <button type="button" onClick={() => { load(); loadSchemaHealth(); }} disabled={loading}
           className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
           Refresh
         </button>
       </div>
+
+      {schemaHealthError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{schemaHealthError}</div>}
+      {schemaHealth && (
+        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm" aria-live="polite">
+          <h2 className="text-lg font-semibold text-gray-800">Database readiness</h2>
+          <p className={schemaHealth.schema_readiness?.ready ? 'mt-2 text-sm text-green-700' : 'mt-2 text-sm text-red-700'}>
+            {schemaHealth.schema_readiness?.ready
+              ? 'Ready: required schema checks passed.'
+              : 'Not ready: one or more required schema checks failed.'}
+          </p>
+          <p className="mt-1 text-sm text-gray-600">
+            Service key role: {schemaHealth.schema_readiness?.service_key_role || 'unknown'}
+          </p>
+          {!schemaHealth.schema_readiness?.ready && (
+            <p className="mt-1 text-sm text-gray-600">
+              Unavailable: {(schemaHealth.schema_readiness?.unavailable_tables || []).join(', ') || 'database access'}
+              {schemaHealth.schema_readiness?.correlation_id && (
+                <> · Reference: {schemaHealth.schema_readiness.correlation_id}</>
+              )}
+            </p>
+          )}
+        </section>
+      )}
 
       {error && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">

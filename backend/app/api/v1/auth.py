@@ -2,6 +2,7 @@ import hashlib
 import logging
 import os
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -86,7 +87,7 @@ def register(user: UserRegister):
                     "location": (user.location or "").strip() or None if role == "farmer" else None,
                     "role": role,
                     "consent_given": user.consent_given,
-                    "privacy_policy_version": user.consent_version or CURRENT_PRIVACY_VERSION,
+                    "privacy_policy_version": CURRENT_PRIVACY_VERSION,
                     "terms_version": CURRENT_TERMS_VERSION,
                 },
             },
@@ -113,18 +114,26 @@ def register(user: UserRegister):
             .execute()
         )
     except Exception as exc:
-        logger.exception("Could not confirm the profile/farm registration transaction.")
+        correlation_id = str(uuid.uuid4())
+        logger.exception(
+            "Could not confirm the profile/farm registration transaction "
+            "(correlation_id=%s).",
+            correlation_id,
+        )
         try:
             _admin_client().auth.admin.delete_user(user_id)
-        except Exception as cleanup_exc:
-            logger.error(f"Could not delete orphan auth user {user_id}: {cleanup_exc}")
+        except Exception:
+            logger.exception(
+                "Could not clean up failed registration (correlation_id=%s).",
+                correlation_id,
+            )
         raise HTTPException(
             status_code=503,
             detail=(
-                "Could not confirm the registration record. Verify that "
-                "database/schema.sql has been applied to the Supabase project "
-                "configured for this backend."
+                "The service is temporarily unavailable. "
+                f"Reference: {correlation_id}"
             ),
+            headers={"X-Correlation-ID": correlation_id},
         ) from exc
 
     if not profile_response.data:
@@ -163,6 +172,7 @@ def register(user: UserRegister):
 
 @router.post("/login")
 def login(user: UserLogin):
+    correlation_id = str(uuid.uuid4())
     try:
         auth_response = supabase.auth.sign_in_with_password({
             "email": user.email,
@@ -175,16 +185,41 @@ def login(user: UserLogin):
             raise HTTPException(status_code=429, detail="Too many login attempts.") from exc
         if exc.status == 403:
             raise HTTPException(status_code=403, detail="Confirm your email before logging in.") from exc
-        raise HTTPException(status_code=503, detail="Authentication service unavailable.") from exc
+        logger.exception("Supabase authentication failed (correlation_id=%s).", correlation_id)
+        raise HTTPException(
+            status_code=503,
+            detail=f"The service is temporarily unavailable. Reference: {correlation_id}",
+            headers={"X-Correlation-ID": correlation_id},
+        ) from exc
     except AuthRetryableError as exc:
-        raise HTTPException(status_code=503, detail="Authentication service unavailable.") from exc
+        logger.exception("Supabase authentication is unavailable (correlation_id=%s).", correlation_id)
+        raise HTTPException(
+            status_code=503,
+            detail=f"The service is temporarily unavailable. Reference: {correlation_id}",
+            headers={"X-Correlation-ID": correlation_id},
+        ) from exc
+    except Exception as exc:
+        logger.exception("Login authentication failed (correlation_id=%s).", correlation_id)
+        raise HTTPException(
+            status_code=503,
+            detail=f"The service is temporarily unavailable. Reference: {correlation_id}",
+            headers={"X-Correlation-ID": correlation_id},
+        ) from exc
 
     if auth_response.user is None:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-    profile_response = (
-        supabase.table("profiles").select("*").eq("id", auth_response.user.id).execute()
-    )
+    try:
+        profile_response = (
+            supabase.table("profiles").select("*").eq("id", auth_response.user.id).execute()
+        )
+    except Exception as exc:
+        logger.exception("Login profile lookup failed (correlation_id=%s).", correlation_id)
+        raise HTTPException(
+            status_code=503,
+            detail=f"The service is temporarily unavailable. Reference: {correlation_id}",
+            headers={"X-Correlation-ID": correlation_id},
+        ) from exc
     if not profile_response.data:
         raise HTTPException(
             status_code=403,
@@ -205,10 +240,18 @@ def login(user: UserLogin):
     if status != "ACTIVE":
         raise HTTPException(status_code=403, detail="Your account status does not permit access.")
 
-    token = create_access_token({
-        "sub": auth_response.user.id,
-        "role": profile.get("role", "farmer"),
-    })
+    try:
+        token = create_access_token({
+            "sub": auth_response.user.id,
+            "role": profile.get("role", "farmer"),
+        })
+    except Exception as exc:
+        logger.exception("Login token creation failed (correlation_id=%s).", correlation_id)
+        raise HTTPException(
+            status_code=503,
+            detail=f"The service is temporarily unavailable. Reference: {correlation_id}",
+            headers={"X-Correlation-ID": correlation_id},
+        ) from exc
     return {"access_token": token, "token_type": "bearer", "user": profile}
 
 

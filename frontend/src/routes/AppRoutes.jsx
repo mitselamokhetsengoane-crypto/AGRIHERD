@@ -11,7 +11,7 @@ import Welcome from '../pages/auth/Welcome';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import ForgotPassword from '../pages/auth/ForgotPassword';
-import PrivacyPolicy from '../pages/auth/PrivacyPolicy';
+import { PrivacyPage, TermsPage } from '../pages/legal/LegalPages';
 
 // --- Farmer Pages ---
 import Dashboard from '../pages/dashboard/Dashboard';
@@ -94,7 +94,13 @@ const AppRoutes = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/signup" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      {!isAdminBuild && (
+        <>
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy-policy" element={<Navigate to="/privacy" replace />} />
+        </>
+      )}
 
       {/* =========================================
           FARMER ROUTES (Only on public build)

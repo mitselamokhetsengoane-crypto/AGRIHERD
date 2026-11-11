@@ -149,6 +149,22 @@ class TestMissingApiRoutes(unittest.TestCase):
             "https://agriherd-admin.onrender.com",
         )
 
+    def test_readiness_returns_503_when_schema_is_unavailable(self):
+        with patch(
+            "app.main.get_database_schema_status",
+            return_value={
+                "ready": False,
+                "service_key_role": "service_role",
+                "unavailable_tables": ["profiles"],
+                "correlation_id": "check-id",
+            },
+        ):
+            response = client.get("/ready")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"]["status"], "not_ready")
+        self.assertEqual(response.json()["detail"]["unavailable_tables"], ["profiles"])
+
 
 class TestInventoryStockRoute(unittest.TestCase):
     def setUp(self):

@@ -17,6 +17,23 @@ def test_read_main():
 
 
 class TestAuthLogin(unittest.TestCase):
+    def test_register_rejects_missing_consent_before_auth_signup(self):
+        with patch("app.api.v1.auth.supabase") as supabase_mock:
+            response = client.post(
+                "/api/v1/auth/register",
+                json={
+                    "full_name": "Test Farmer",
+                    "email": "farmer@example.com",
+                    "password": "valid-password",
+                    "farm_name": "Test Farm",
+                    "location": "Test District",
+                },
+            )
+
+        assert response.status_code == 400
+        assert "accept the Privacy Policy and Terms" in response.json()["detail"]
+        supabase_mock.auth.sign_up.assert_not_called()
+
     def test_register_creates_profile_and_farm_through_auth_transaction(self):
         with patch("app.api.v1.auth.supabase") as supabase_mock:
             supabase_mock.auth.sign_up.return_value = SimpleNamespace(
@@ -137,6 +154,25 @@ class TestAuthLogin(unittest.TestCase):
 
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid email or password."
+
+    def test_login_returns_safe_503_for_profile_database_failure(self):
+        with patch("app.api.v1.auth.supabase") as supabase_mock:
+            supabase_mock.auth.sign_in_with_password.return_value = SimpleNamespace(
+                user=SimpleNamespace(id="user-id")
+            )
+            supabase_mock.table.return_value.select.return_value.eq.return_value.execute.side_effect = (
+                RuntimeError("permission denied for schema public")
+            )
+
+            response = client.post(
+                "/api/v1/auth/login",
+                json={"email": "farmer@example.com", "password": "valid-password"},
+            )
+
+        assert response.status_code == 503
+        assert response.json()["detail"].startswith("The service is temporarily unavailable.")
+        assert "permission denied" not in response.json()["detail"]
+        assert response.headers["x-correlation-id"]
 
     def test_login_reports_missing_profile(self):
         with patch("app.api.v1.auth.supabase") as supabase_mock:

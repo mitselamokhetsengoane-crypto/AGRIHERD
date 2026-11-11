@@ -7,6 +7,7 @@ from typing import Literal, Optional
 from app.core.admin_defaults import ADMIN_MODULES
 from app.core.permissions import require_admin_module
 from app.database.connection import supabase
+from app.database.health import check_database_schema
 from app.services.audit_service import AuditService
 
 router = APIRouter()
@@ -141,6 +142,7 @@ def get_system_settings(current_user: dict = Depends(require_admin_module("Secur
 
 @router.get("/system-health")
 def get_system_health(current_user: dict = Depends(require_admin_module("Security Settings"))):
+    schema_readiness = check_database_schema(supabase)
     tables = {
         "users": "profiles",
         "farms": "farms",
@@ -183,6 +185,7 @@ def get_system_health(current_user: dict = Depends(require_admin_module("Securit
 
     return {
         "database_connected": "users" not in errors,
+        "schema_readiness": schema_readiness,
         "admin_schema_available": admin_schema_available,
         "farm_monitoring_schema_available": farm_monitoring_schema_available,
         "table_counts": counts,

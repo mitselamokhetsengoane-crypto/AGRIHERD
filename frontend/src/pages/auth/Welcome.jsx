@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Footer from '../../components/common/Footer';
 
 const Welcome = () => {
   return (
@@ -125,6 +126,7 @@ const Welcome = () => {
         </div>
       </section>
 
+      <Footer />
     </div>
   );
 };

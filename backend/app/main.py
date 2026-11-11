@@ -5,6 +5,8 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from app.core.admin_defaults import ensure_admin_defaults
+from app.database.connection import SERVICE_KEY_ROLE, supabase
+from app.database.health import check_database_schema, get_database_schema_status
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("agriherd")
@@ -29,7 +31,16 @@ api.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 @api.on_event("startup")
-def seed_admin_defaults() -> None:
+def check_schema_and_seed_defaults() -> None:
+    status = check_database_schema(supabase)
+    if not status["ready"]:
+        logger.error(
+            "Database schema check failed; unavailable tables: %s; service key role: %s.",
+            ", ".join(status["unavailable_tables"]) or "none",
+            SERVICE_KEY_ROLE,
+        )
+        return
+    logger.info("Database schema check passed; service key role: %s.", SERVICE_KEY_ROLE)
     ensure_admin_defaults()
 
 
@@ -78,6 +89,23 @@ def root():
 @api.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@api.get("/ready")
+def readiness():
+    status = get_database_schema_status()
+    if not status["ready"]:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "service_key_role": status["service_key_role"],
+                "unavailable_tables": status["unavailable_tables"],
+                "correlation_id": status["correlation_id"],
+            },
+        )
+    return {"status": "ready", **status}
+
 
 # Wrap the whole ASGI app so CORS headers are also present on unhandled errors.
 app = CORSMiddleware(
