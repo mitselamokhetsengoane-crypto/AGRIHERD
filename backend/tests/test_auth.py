@@ -17,14 +17,15 @@ def test_read_main():
 
 
 class TestAuthLogin(unittest.TestCase):
-    def test_register_inserts_email_into_profile(self):
-        with (
-            patch("app.api.v1.auth.supabase") as supabase_mock,
-            patch("app.api.v1.auth.create_client") as create_client_mock,
-        ):
+    def test_register_creates_profile_and_farm_through_auth_transaction(self):
+        with patch("app.api.v1.auth.supabase") as supabase_mock:
             supabase_mock.auth.sign_up.return_value = SimpleNamespace(
                 user=SimpleNamespace(id="user-id")
             )
+            (
+                supabase_mock.table.return_value.select.return_value
+                .eq.return_value.limit.return_value.execute.return_value
+            ) = SimpleNamespace(data=[{"account_status": "ACTIVE"}])
 
             response = client.post(
                 "/api/v1/auth/register",
@@ -34,6 +35,8 @@ class TestAuthLogin(unittest.TestCase):
                     "password": "valid-password",
                     "phone": "+26658000000",
                     "farm_name": "Test Farm",
+                    "location": "Test District",
+                    "consent_given": True,
                 },
             )
 
@@ -41,19 +44,60 @@ class TestAuthLogin(unittest.TestCase):
         assert response.json() == {
             "message": "User registered successfully",
             "user_id": "user-id",
-        }
-        create_client_mock.return_value.table.assert_called_once_with("profiles")
-        create_client_mock.return_value.table.return_value.insert.assert_called_once_with({
-            "id": "user-id",
-            "full_name": "Test Farmer",
-            "email": "farmer@example.com",
-            "phone": "+26658000000",
-            "farm_name": "Test Farm",
             "role": "farmer",
+            "account_status": "ACTIVE",
+        }
+        supabase_mock.auth.sign_up.assert_called_once_with({
+            "email": "farmer@example.com",
+            "password": "valid-password",
+            "options": {
+                "data": {
+                    "full_name": "Test Farmer",
+                    "phone": "+26658000000",
+                    "farm_name": "Test Farm",
+                    "location": "Test District",
+                    "role": "farmer",
+                    "consent_given": True,
+                    "privacy_policy_version": "1.0",
+                    "terms_version": "1.0",
+                },
+            },
         })
+        supabase_mock.table.assert_called_once_with("profiles")
+
+    def test_register_rejects_missing_profile_farm_trigger(self):
+        with (
+            patch("app.api.v1.auth.supabase") as supabase_mock,
+            patch("app.api.v1.auth.create_client") as create_client_mock,
+        ):
+            supabase_mock.auth.sign_up.return_value = SimpleNamespace(
+                user=SimpleNamespace(id="orphaned-user-id")
+            )
+            (
+                supabase_mock.table.return_value.select.return_value
+                .eq.return_value.limit.return_value.execute.return_value
+            ) = SimpleNamespace(data=[])
+
+            response = client.post(
+                "/api/v1/auth/register",
+                json={
+                    "full_name": "Test Farmer",
+                    "email": "farmer@example.com",
+                    "password": "valid-password",
+                    "farm_name": "Test Farm",
+                    "location": "Test District",
+                    "consent_given": True,
+                },
+            )
+
+        assert response.status_code == 503
+        assert "014_admin_farm_monitoring.sql" in response.json()["detail"]
+        create_client_mock.return_value.auth.admin.delete_user.assert_called_once_with(
+            "orphaned-user-id"
+        )
 
     def test_login_returns_token_and_profile(self):
-        profile = {"id": "user-id", "role": "farmer"}
+        profile = {"id": "user-id", "role": "farmer", "account_status": "ACTIVE"}
         with (
             patch("app.api.v1.auth.supabase") as supabase_mock,
             patch("app.api.v1.auth.create_access_token", return_value="token"),

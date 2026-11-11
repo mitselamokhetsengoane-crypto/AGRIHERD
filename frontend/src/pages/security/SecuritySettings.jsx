@@ -11,20 +11,29 @@ const settingLabels = {
   password_require_special: 'Require special character in passwords',
   password_expiry_days: 'Force password change every N days',
   session_auto_logout_minutes: 'Auto-logout after N minutes',
+  session_token_lifetime_minutes: 'Access token lifetime in minutes',
+  login_rate_limit_per_minute: 'Login attempts per minute',
+  api_rate_limit_per_minute: 'API requests per minute',
   enforce_mfa_for_admins: 'Require MFA for administrators',
 };
 
 const SecuritySettings = () => {
   const [settings, setSettings] = useState([]);
+  const [drafts, setDrafts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [healthError, setHealthError] = useState('');
+  const [healthLoading, setHealthLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      setSettings(await securityService.getSystemSettings());
+      const rows = await securityService.getSystemSettings();
+      setSettings(rows);
+      setDrafts(Object.fromEntries(rows.map((row) => [row.setting_key, row.setting_value])));
     } catch (err) {
       setError(err.response?.data?.detail || 'Could not load settings.');
     } finally {
@@ -33,6 +42,13 @@ const SecuritySettings = () => {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    securityService.getSystemHealth()
+      .then(setHealth)
+      .catch((err) => setHealthError(err.response?.data?.detail || 'System health could not be loaded.'))
+      .finally(() => setHealthLoading(false));
+  }, []);
 
   const handleToggle = async (key, current) => {
     setSaving(key);
@@ -83,6 +99,42 @@ const SecuritySettings = () => {
         </div>
       )}
 
+      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-800">System health</h2>
+        {healthLoading ? (
+          <p className="mt-3 text-sm text-gray-500">Checking database connectivity and table counts...</p>
+        ) : healthError ? (
+          <p role="alert" className="mt-3 text-sm text-red-700">{healthError}</p>
+        ) : (
+          <>
+            <div className="mt-3 flex flex-wrap gap-4 text-sm">
+              <p>Database: <strong className={health.database_connected ? 'text-green-700' : 'text-red-700'}>
+                {health.database_connected ? 'Connected' : 'Unavailable'}
+              </strong></p>
+              <p>Migration 012 schema: <strong className={health.migration_012_applied ? 'text-green-700' : 'text-red-700'}>
+                {health.migration_012_applied ? 'Detected' : 'Missing or incomplete'}
+              </strong></p>
+              <p>Migration 014 schema: <strong className={health.migration_014_applied ? 'text-green-700' : 'text-red-700'}>
+                {health.migration_014_applied ? 'Detected' : 'Missing or incomplete'}
+              </strong></p>
+            </div>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Object.entries(health.table_counts).map(([table, count]) => (
+                <div key={table} className="rounded-lg bg-gray-50 px-4 py-3">
+                  <dt className="text-xs uppercase tracking-wide text-gray-500">{table.replaceAll('_', ' ')}</dt>
+                  <dd className="mt-1 text-lg font-semibold text-gray-900">{count == null ? 'Unavailable' : count}</dd>
+                </div>
+              ))}
+            </dl>
+            {health.unavailable_tables.length > 0 && (
+              <p role="alert" className="mt-4 text-sm text-amber-800">
+                Unavailable tables: {health.unavailable_tables.join(', ')}.
+              </p>
+            )}
+          </>
+        )}
+      </section>
+
       {settings.length === 0 && !error ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
           No security settings were returned from the database. Apply
@@ -124,8 +176,11 @@ const SecuritySettings = () => {
               <p className="text-gray-700">{settingLabels[s.setting_key] || s.setting_key}</p>
               <input
                 type="number"
-                defaultValue={s.setting_value}
-                onBlur={(e) => { if (e.target.value !== s.setting_value) handleChange(s.setting_key, e.target.value); }}
+                value={drafts[s.setting_key] ?? s.setting_value}
+                onChange={(e) => setDrafts((current) => ({ ...current, [s.setting_key]: e.target.value }))}
+                onBlur={() => {
+                  if (drafts[s.setting_key] !== s.setting_value) handleChange(s.setting_key, drafts[s.setting_key]);
+                }}
                 disabled={saving === s.setting_key}
                 className="w-24 border border-gray-300 rounded px-3 py-1 text-right"
               />

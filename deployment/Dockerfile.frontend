@@ -4,8 +4,11 @@
 # ============================================================
 
 # Stage 1: Build React app
+# Set VITE_APP_MODE to "public" or "admin" to build only that route family.
 FROM node:20-alpine AS builder
 WORKDIR /app
+ARG VITE_APP_MODE=all
+ENV VITE_APP_MODE=${VITE_APP_MODE}
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ .

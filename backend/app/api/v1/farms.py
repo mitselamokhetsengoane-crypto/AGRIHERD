@@ -79,6 +79,17 @@ def update_farm(farm_id: str, body: FarmCreate, current_user: dict = Depends(get
 
 @router.delete("/{farm_id}")
 def delete_farm(farm_id: str, current_user: dict = Depends(get_current_user)):
+    owned_farm = (
+        supabase.table("farms")
+        .select("id")
+        .eq("id", farm_id)
+        .eq("owner_id", current_user["sub"])
+        .limit(1)
+        .execute()
+    )
+    if not owned_farm.data:
+        raise HTTPException(404, "Farm not found or not yours.")
+
     # Only allow delete if no livestock/crops reference it
     live = supabase.table("livestock").select("id").eq("farm_id", farm_id).limit(1).execute()
     crops = supabase.table("crops").select("id").eq("farm_id", farm_id).limit(1).execute()

@@ -3,6 +3,7 @@ from app.database.connection import supabase
 from app.services.blockchain_service import blockchain_service
 
 logger = logging.getLogger(__name__)
+BLOCKCHAIN_NETWORK = "AgriHerd Custom Chain"
 
 async def record_order_on_chain(order_id: str) -> dict:
     try:
@@ -45,6 +46,8 @@ async def record_order_on_chain(order_id: str) -> dict:
             "record_hash": result["blockHash"],  # Store the block hash here
             "transaction_hash": result["transactionHash"],
             "block_number": result["blockNumber"],
+            "network": BLOCKCHAIN_NETWORK,
+            "status": "submitted",
         }).execute()
 
         return {"status": "submitted", "transaction_hash": result["transactionHash"]}

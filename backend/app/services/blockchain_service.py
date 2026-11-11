@@ -1,6 +1,9 @@
 import os
 import httpx
 import logging
+from urllib.parse import quote
+
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -50,5 +53,42 @@ class BlockchainService:
         except Exception as e:
             logger.error(f"Chain verify error: {e}")
             return {"status": "ERROR", "verified": False}
+
+    async def verify_record(self, transaction_hash: str) -> dict:
+        """Verify a stored transaction against the live blockchain service."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.service_url}/verify-record/{quote(transaction_hash, safe='')}",
+                    headers=self.headers,
+                    timeout=20.0,
+                )
+                if response.status_code == 404:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="The transaction was not found on the blockchain network.",
+                    )
+                response.raise_for_status()
+                result = response.json()
+                if not isinstance(result, dict) or not isinstance(result.get("verified"), bool):
+                    raise HTTPException(
+                        status_code=502,
+                        detail="The blockchain service returned an invalid verification response.",
+                    )
+                return result
+        except HTTPException:
+            raise
+        except httpx.HTTPError as exc:
+            logger.exception("Could not verify blockchain transaction.")
+            raise HTTPException(
+                status_code=503,
+                detail="The blockchain service is unreachable or returned an error.",
+            ) from exc
+        except ValueError as exc:
+            logger.exception("Could not parse blockchain verification response.")
+            raise HTTPException(
+                status_code=502,
+                detail="The blockchain service returned invalid JSON.",
+            ) from exc
 
 blockchain_service = BlockchainService()

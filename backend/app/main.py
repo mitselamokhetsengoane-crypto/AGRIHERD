@@ -4,6 +4,7 @@ import os
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from app.core.admin_defaults import ensure_admin_defaults
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("agriherd")
@@ -23,6 +24,11 @@ _configured_origins = {
 ORIGINS = sorted(_default_origins | _configured_origins)
 
 api.add_middleware(GZipMiddleware, minimum_size=1000)
+
+
+@api.on_event("startup")
+def seed_admin_defaults() -> None:
+    ensure_admin_defaults()
 
 
 def mount(module: str, prefix: str, tag: str, optional: bool = False) -> None:

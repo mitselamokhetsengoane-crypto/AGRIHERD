@@ -5,7 +5,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 from supabase import create_client
 from supabase_auth.errors import (
@@ -49,26 +49,12 @@ def _admin_client():
     return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 
-def _requires_farmer_approval() -> bool:
-    try:
-        row = (
-            supabase.table("system_settings")
-            .select("setting_value")
-            .eq("setting_key", "require_farmer_approval")
-            .limit(1)
-            .execute()
-        )
-        return bool(row.data and row.data[0]["setting_value"].lower() == "true")
-    except Exception:
-        return False
-
-
 def _hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 @router.post("/register")
-def register(user: UserRegister, request: Request):
+def register(user: UserRegister):
     role = (user.role or "farmer").strip().lower()
     if role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="Role must be 'farmer' or 'buyer'.")
@@ -78,6 +64,9 @@ def register(user: UserRegister, request: Request):
             status_code=400,
             detail="You must accept the Privacy Policy and Terms to register.",
         )
+
+    if not user.full_name or not user.full_name.strip():
+        raise HTTPException(status_code=422, detail="Full name is required.")
 
     if role == "farmer":
         if not user.farm_name or not user.farm_name.strip():
@@ -89,6 +78,18 @@ def register(user: UserRegister, request: Request):
         auth_response = supabase.auth.sign_up({
             "email": user.email,
             "password": user.password,
+            "options": {
+                "data": {
+                    "full_name": user.full_name.strip(),
+                    "phone": (user.phone or "").strip() or None,
+                    "farm_name": (user.farm_name or "").strip() or None if role == "farmer" else None,
+                    "location": (user.location or "").strip() or None if role == "farmer" else None,
+                    "role": role,
+                    "consent_given": user.consent_given,
+                    "privacy_policy_version": user.consent_version or CURRENT_PRIVACY_VERSION,
+                    "terms_version": CURRENT_TERMS_VERSION,
+                },
+            },
         })
     except Exception as exc:
         msg = str(exc).lower()
@@ -103,56 +104,49 @@ def register(user: UserRegister, request: Request):
         raise HTTPException(status_code=400, detail="Registration failed: auth response was empty.")
 
     user_id = auth_response.user.id
-    initial_status = "PENDING" if role == "farmer" and _requires_farmer_approval() else "ACTIVE"
-
-    profile_row = {
-        "id": user_id,
-        "full_name": user.full_name.strip(),
-        "email": user.email,
-        "phone": (user.phone or "").strip() or None,
-        "farm_name": (user.farm_name or "").strip() or None if role == "farmer" else None,
-        "location": (user.location or "").strip() or None if role == "farmer" else None,
-        "role": role,
-        "account_status": initial_status,
-    }
-
     try:
-        _admin_client().table("profiles").insert(profile_row).execute()
+        profile_response = (
+            supabase.table("profiles")
+            .select("account_status")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
     except Exception as exc:
-        logger.error(f"Profile insert failed for {user.email}: {exc}. Deleting orphan auth user.")
+        logger.exception("Could not confirm the profile/farm registration transaction.")
         try:
             _admin_client().auth.admin.delete_user(user_id)
         except Exception as cleanup_exc:
             logger.error(f"Could not delete orphan auth user {user_id}: {cleanup_exc}")
-        raise HTTPException(status_code=500, detail=f"Could not save your profile: {exc}. Please try again.")
+        raise HTTPException(
+            status_code=503,
+            detail="Could not confirm the registration record. Verify migration "
+            "014_admin_farm_monitoring.sql and retry.",
+        ) from exc
 
-    client_ip = request.client.host if request.client else None
-    user_agent = request.headers.get("user-agent")
-    try:
-        _admin_client().table("consent_records").insert([
-            {
-                "user_id": user_id,
-                "policy_type": "privacy",
-                "policy_version": user.consent_version or CURRENT_PRIVACY_VERSION,
-                "ip_address": client_ip,
-                "user_agent": user_agent,
-            },
-            {
-                "user_id": user_id,
-                "policy_type": "terms",
-                "policy_version": CURRENT_TERMS_VERSION,
-                "ip_address": client_ip,
-                "user_agent": user_agent,
-            },
-        ]).execute()
-    except Exception as exc:
-        logger.error(f"Consent insert failed for {user.email}: {exc}. Rolling back.")
+    if not profile_response.data:
+        logger.error(
+            "Supabase Auth created user %s without its trigger-created profile/farm.",
+            user_id,
+        )
         try:
-            _admin_client().table("profiles").delete().eq("id", user_id).execute()
             _admin_client().auth.admin.delete_user(user_id)
         except Exception as cleanup_exc:
-            logger.error(f"Rollback failed for {user_id}: {cleanup_exc}")
-        raise HTTPException(status_code=500, detail="Registration could not record your consent. Please try again.")
+            logger.error("Could not clean up unprofiled auth user %s: %s", user_id, cleanup_exc)
+        raise HTTPException(
+            status_code=503,
+            detail="The profile/farm registration trigger is missing. Apply "
+            "database/migrations/014_admin_farm_monitoring.sql.",
+        )
+
+    initial_status = (profile_response.data[0].get("account_status") or "").upper()
+    if initial_status not in {"ACTIVE", "PENDING"}:
+        logger.error("Profile trigger returned an invalid account status for user %s.", user_id)
+        try:
+            _admin_client().auth.admin.delete_user(user_id)
+        except Exception as cleanup_exc:
+            logger.error("Could not clean up invalid registration %s: %s", user_id, cleanup_exc)
+        raise HTTPException(status_code=503, detail="The registration trigger returned an invalid account status.")
 
     message = "User registered successfully"
     if initial_status == "PENDING":
@@ -186,32 +180,15 @@ def login(user: UserLogin):
         supabase.table("profiles").select("*").eq("id", auth_response.user.id).execute()
     )
     if not profile_response.data:
-        try:
-            meta = auth_response.user.user_metadata or {}
-            repaired = {
-                "id": auth_response.user.id,
-                "full_name": meta.get("full_name") or auth_response.user.email.split("@")[0],
-                "email": auth_response.user.email,
-                "phone": meta.get("phone"),
-                "farm_name": meta.get("farm_name"),
-                "location": meta.get("location"),
-                "role": meta.get("role", "farmer"),
-                "account_status": "ACTIVE",
-            }
-            _admin_client().table("profiles").insert(repaired).execute()
-            profile_response = supabase.table("profiles").select("*").eq("id", auth_response.user.id).execute()
-        except Exception as repair_exc:
-            logger.error(f"Auto-repair failed: {repair_exc}")
-            raise HTTPException(
-                status_code=403,
-                detail="Your account profile is missing and could not be repaired. Please register again with a different email or contact support.",
-            )
-
-    if not profile_response.data:
-        raise HTTPException(status_code=403, detail="Your account profile is missing.")
+        raise HTTPException(
+            status_code=403,
+            detail="Your account profile is missing. Contact support; the account was not auto-activated.",
+        )
 
     profile = profile_response.data[0]
-    status = (profile.get("account_status") or "ACTIVE").upper()
+    status = (profile.get("account_status") or "").upper()
+    if not status:
+        raise HTTPException(status_code=403, detail="Your account status is not configured. Contact support.")
 
     if status == "PENDING":
         raise HTTPException(status_code=403, detail="Your account is pending administrator approval. You will be able to log in once approved.")
@@ -219,6 +196,8 @@ def login(user: UserLogin):
         raise HTTPException(status_code=403, detail="Your account has been suspended. Please contact support.")
     if status == "DEACTIVATED":
         raise HTTPException(status_code=403, detail="Your account has been deactivated. Please contact support.")
+    if status != "ACTIVE":
+        raise HTTPException(status_code=403, detail="Your account status does not permit access.")
 
     token = create_access_token({
         "sub": auth_response.user.id,

@@ -16,6 +16,20 @@ class AuditService:
             logger.error(f"Failed to write audit log: {exc}")
 
     @staticmethod
+    def log_or_raise(user_id: str, action: str, details: str = ""):
+        try:
+            response = supabase.table("audit_logs").insert({
+                "user_id": user_id,
+                "action": action,
+                "details": details,
+            }).execute()
+            if not response.data:
+                raise RuntimeError("The audit log insert returned no row.")
+        except Exception as exc:
+            logger.exception("Could not persist required audit event %s.", action)
+            raise RuntimeError("The change could not be audited.") from exc
+
+    @staticmethod
     def get_logs(limit: int = 200):
         try:
             response = (

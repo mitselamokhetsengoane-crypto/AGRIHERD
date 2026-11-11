@@ -17,8 +17,11 @@ def mock_table(data):
     table = MagicMock()
     table.insert.return_value = table
     table.select.return_value = table
+    table.update.return_value = table
+    table.delete.return_value = table
     table.eq.return_value = table
     table.in_.return_value = table
+    table.ilike.return_value = table
     table.gt.return_value = table
     table.gt.return_value = table
     table.gte.return_value = table
@@ -26,6 +29,7 @@ def mock_table(data):
     table.lte.return_value = table
     table.order.return_value = table
     table.limit.return_value = table
+    table.range.return_value = table
     table.execute.return_value = SimpleNamespace(data=data)
     return table
 
@@ -493,6 +497,122 @@ class TestAdminDashboardAndNotifications(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()[0]["role"], "buyer")
+
+    def test_role_permissions_reports_an_empty_table_explicitly(self):
+        with (
+            patch("app.core.permissions.supabase") as permissions_db,
+            patch("app.api.v1.security.supabase") as security_db,
+        ):
+            permissions_db.table.return_value = mock_table([])
+            security_db.table.return_value = mock_table([])
+            response = client.get("/api/v1/security/role-permissions")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("exists but is empty", response.json()["detail"])
+
+    def test_settings_reports_a_missing_table_and_migration(self):
+        with (
+            patch("app.core.permissions.supabase") as permissions_db,
+            patch("app.api.v1.security.supabase") as security_db,
+        ):
+            permissions_db.table.return_value = mock_table([])
+            table = mock_table([])
+            table.execute.side_effect = ValueError(
+                "PGRST205: Could not find the table public.system_settings in the schema cache"
+            )
+            security_db.table.return_value = table
+            response = client.get("/api/v1/security/system-settings")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("public.system_settings is missing", response.json()["detail"])
+        self.assertIn("012_admin_dashboard_and_product_images.sql", response.json()["detail"])
+
+    def test_setting_change_is_persisted_and_audited(self):
+        setting = {"setting_key": "password_min_length", "setting_value": "10"}
+        table = mock_table([setting])
+        with (
+            patch("app.core.permissions.supabase") as permissions_db,
+            patch("app.api.v1.security.supabase") as security_db,
+            patch("app.api.v1.security.AuditService.log_or_raise") as audit,
+        ):
+            permissions_db.table.return_value = mock_table([])
+            security_db.table.return_value = table
+            response = client.patch(
+                "/api/v1/security/system-settings/password_min_length",
+                json={"setting_value": "10"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        table.update.assert_called_once_with({"setting_value": "10"})
+        audit.assert_called_once_with(
+            "admin-id",
+            "UPDATE_SETTING",
+            "password_min_length = 10",
+        )
+
+    def test_admin_farm_list_returns_paged_aggregate_data_only(self):
+        farm = {
+            "id": "farm-id",
+            "owner_id": "farmer-id",
+            "farm_name": "North Farm",
+            "location": "District",
+            "status": "active",
+            "created_at": "2026-11-10T00:00:00Z",
+        }
+        tables = {
+            "farms": mock_table([farm]),
+            "profiles": mock_table([{"id": "farmer-id", "full_name": "Farmer Name"}]),
+            "livestock": mock_table([{"farm_id": "farm-id"}, {"farm_id": "farm-id"}]),
+            "crops": mock_table([{"farm_id": "farm-id"}]),
+        }
+        tables["farms"].execute.return_value = SimpleNamespace(data=[farm], count=1)
+        with (
+            patch("app.core.permissions.supabase") as permissions_db,
+            patch("app.api.v1.security.supabase") as security_db,
+        ):
+            permissions_db.table.return_value = mock_table([])
+            security_db.table.side_effect = tables.get
+            response = client.get("/api/v1/security/farms?page=1&page_size=25")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["total"], 1)
+        item = response.json()["items"][0]
+        self.assertEqual(item["owner_name"], "Farmer Name")
+        self.assertEqual(item["livestock_count"], 2)
+        self.assertEqual(item["crop_count"], 1)
+        self.assertNotIn("owner_id", item)
+
+    def test_non_admin_is_denied_admin_monitoring_endpoint(self):
+        api.dependency_overrides[get_current_user] = lambda: {
+            "sub": "farmer-id",
+            "role": "farmer",
+        }
+        response = client.get("/api/v1/admin/ai/summary")
+        self.assertEqual(response.status_code, 403)
+
+    def test_permission_update_cannot_grant_admin_module_to_farmer(self):
+        row = {
+            "id": "permission-id",
+            "role": "farmer",
+            "module": "AI Monitoring",
+            "action": "Read",
+            "permission": "restricted",
+        }
+        permission_table = mock_table([])
+        permission_table.execute.return_value = SimpleNamespace(data=[row])
+        with (
+            patch("app.core.permissions.supabase") as permissions_db,
+            patch("app.api.v1.security.supabase") as security_db,
+        ):
+            permissions_db.table.return_value = mock_table([])
+            security_db.table.return_value = permission_table
+            response = client.patch(
+                "/api/v1/security/role-permissions/permission-id",
+                json={"permission": "allowed"},
+            )
+
+        self.assertEqual(response.status_code, 403)
+        permission_table.update.assert_not_called()
 
     def test_ai_summary_returns_scan_count(self):
         scans_table = mock_table([])

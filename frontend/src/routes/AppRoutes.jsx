@@ -3,6 +3,8 @@ import MainLayout from '../layouts/MainLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import BuyerLayout from '../layouts/BuyerLayout';
 import ProtectedRoute from '../components/common/ProtectedRoute';
+import AdminProtectedRoute from '../components/common/AdminProtectedRoute';
+import NotFound from '../components/common/NotFound';
 
 import Welcome from '../pages/auth/Welcome';
 import Login from '../pages/auth/Login';
@@ -57,6 +59,8 @@ import Categories from '../pages/marketplace/Categories';
 import BuyerDashboard from '../pages/buyer/BuyerDashboard';
 
 import AdminDashboard from '../pages/admin/AdminDashboard';
+import AdminAIDashboard from '../pages/admin/AdminAIDashboard';
+import AdminBlockchain from '../pages/admin/AdminBlockchain';
 import FarmManagement from '../pages/admin/FarmManagement';
 import MarketplaceMonitor from '../pages/admin/MarketplaceMonitor';
 import UserManagement from '../pages/security/UserManagement';
@@ -71,6 +75,9 @@ const LegacyAppRedirect = () => {
 };
 
 const AppRoutes = () => {
+  const isAdminBuild = import.meta.env.VITE_APP_MODE === 'admin';
+  const isPublicBuild = import.meta.env.VITE_APP_MODE === 'public';
+
   return (
     <Routes>
       <Route path="/" element={<Welcome />} />
@@ -83,6 +90,7 @@ const AppRoutes = () => {
       {/* =========================================
           FARMER ONLY
           ========================================= */}
+      {!isAdminBuild && (
       <Route element={<ProtectedRoute allowedRoles={['farmer']} />}>
         <Route path="/app" element={<MainLayout />}>
           <Route index element={<Navigate to="/app/dashboard" replace />} />
@@ -133,10 +141,12 @@ const AppRoutes = () => {
         </Route>
         <Route path="/:legacyPath/*" element={<LegacyAppRedirect />} />
       </Route>
+      )}
 
       {/* =========================================
           BUYER ONLY (Fixed: Everything nested here)
           ========================================= */}
+      {!isAdminBuild && (
       <Route element={<ProtectedRoute allowedRoles={['buyer']} />}>
         <Route path="/buyer" element={<BuyerLayout />}>
           <Route index element={<Navigate to="/buyer/dashboard" replace />} />
@@ -154,14 +164,18 @@ const AppRoutes = () => {
           <Route path="profile" element={<Profile />} />
         </Route>
       </Route>
+      )}
 
       {/* =========================================
           ADMIN
           ========================================= */}
-      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+      {!isPublicBuild && (
+      <Route element={<AdminProtectedRoute />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="ai" element={<AdminAIDashboard />} />
+          <Route path="blockchain" element={<AdminBlockchain />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="farms" element={<FarmManagement />} />
           <Route path="marketplace" element={<MarketplaceMonitor />} />
@@ -173,8 +187,9 @@ const AppRoutes = () => {
           <Route path="profile" element={<Profile />} />
         </Route>
       </Route>
+      )}
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

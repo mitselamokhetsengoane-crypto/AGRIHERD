@@ -6,6 +6,7 @@ const RolesPermissions = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -20,6 +21,19 @@ const RolesPermissions = () => {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const handlePermissionChange = async (row, permission) => {
+    setSaving(row.id);
+    setError('');
+    try {
+      await securityService.updateRolePermission(row.id, permission);
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Could not save this permission.');
+    } finally {
+      setSaving(null);
+    }
+  };
 
   if (loading) return <LoadingIndicator label="Loading role permissions..." />;
 
@@ -36,7 +50,7 @@ const RolesPermissions = () => {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Roles &amp; Permissions</h1>
-          <p className="text-gray-500 mt-1">The permission matrix is loaded from the database and defines what each role can read and write.</p>
+          <p className="text-gray-500 mt-1">Database-backed permissions. Account status and farm ownership are always enforced by the backend.</p>
         </div>
         <button type="button" onClick={load} disabled={loading}
           className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
@@ -62,11 +76,23 @@ const RolesPermissions = () => {
               <h3 className="text-lg font-bold text-primary mb-3">{roleLabels[role] || role}</h3>
               <ul className="text-sm text-gray-600 space-y-2">
                 {byRole[role].map((perm) => (
-                  <li key={perm.id}>
-                    <span className={perm.permission === 'allowed' ? 'font-medium text-green-700' : 'font-medium text-gray-500'}>
-                      {perm.permission === 'allowed' ? 'Allowed' : 'Restricted'}
+                  <li key={perm.id} className="flex items-center justify-between gap-3">
+                    <span>
+                      <span className={perm.permission === 'allowed' ? 'font-medium text-green-700' : 'font-medium text-gray-500'}>
+                        {perm.permission === 'allowed' ? 'Allowed' : 'Restricted'}
+                      </span>
+                      {' — '}{perm.module}: {perm.action}
                     </span>
-                    {' — '}{perm.module}: {perm.action}
+                    <select
+                      aria-label={`${roleLabels[role] || role} ${perm.module} ${perm.action} permission`}
+                      value={perm.permission}
+                      disabled={saving === perm.id}
+                      onChange={(event) => handlePermissionChange(perm, event.target.value)}
+                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs disabled:opacity-60"
+                    >
+                      <option value="allowed">Allowed</option>
+                      <option value="restricted">Restricted</option>
+                    </select>
                   </li>
                 ))}
               </ul>

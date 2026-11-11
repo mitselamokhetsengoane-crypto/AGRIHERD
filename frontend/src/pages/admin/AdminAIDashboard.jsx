@@ -9,6 +9,9 @@ const AdminAIDashboard = () => {
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
   const [serviceStatus, setServiceStatus] = useState(null);
+  const [predictions, setPredictions] = useState([]);
+  const [predictionError, setPredictionError] = useState('');
+  const [predictionsLoading, setPredictionsLoading] = useState(true);
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -22,9 +25,24 @@ const AdminAIDashboard = () => {
     }
   }, []);
 
-  useEffect(() => { loadSummary(); }, [loadSummary]);
+  const loadPredictions = useCallback(async () => {
+    setPredictionsLoading(true);
+    setPredictionError('');
+    try {
+      setPredictions(await securityService.getAdminAIPredictions());
+    } catch (err) {
+      setPredictionError(getErrorMessage(err, 'Could not load prediction history.'));
+    } finally {
+      setPredictionsLoading(false);
+    }
+  }, []);
 
-  const checkService = async () => {
+  useEffect(() => {
+    loadSummary();
+    loadPredictions();
+  }, [loadPredictions, loadSummary]);
+
+  const checkService = useCallback(async () => {
     setChecking(true);
     setServiceStatus(null);
     try {
@@ -37,19 +55,23 @@ const AdminAIDashboard = () => {
     } finally {
       setChecking(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { checkService(); }, [checkService]);
 
   if (loading) return <LoadingIndicator label="Loading AI dashboard..." />;
+  const modelVersion = predictions.find((scan) => scan.prediction?.model_version)?.prediction.model_version
+    || summary?.model_version;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">AI Service Dashboard</h1>
-          <p className="mt-1 text-gray-500">Database-backed scan totals and live service status.</p>
+          <p className="mt-1 text-gray-500">Stored prediction history, reported model metadata and live service status.</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={loadSummary} disabled={loading}
+          <button type="button" onClick={() => { loadSummary(); loadPredictions(); }} disabled={loading || predictionsLoading}
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
             Refresh data
           </button>
@@ -67,7 +89,7 @@ const AdminAIDashboard = () => {
         </div>
       )}
 
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-gray-500">Disease scans recorded</p>
           <p className="mt-2 text-3xl font-bold text-gray-900">{summary ? summary.disease_scan_count : '—'}</p>
@@ -75,15 +97,52 @@ const AdminAIDashboard = () => {
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-gray-500">Model version</p>
-          <p className="mt-2 text-xl font-semibold text-gray-900">{summary?.model_version || 'Not reported'}</p>
-          <p className="mt-2 text-xs text-gray-500">Model metadata is not currently published by the AI service.</p>
+          <p className="mt-2 text-xl font-semibold text-gray-900">{modelVersion || 'Not stored'}</p>
+          <p className="mt-2 text-xs text-gray-500">Shown only when present in stored prediction metadata.</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-gray-500">Evaluation metrics</p>
           <p className="mt-2 text-xl font-semibold text-gray-900">{summary?.evaluation_metrics ? 'Available' : 'Not available'}</p>
-          <p className="mt-2 text-xs text-gray-500">Evaluation metrics are not currently reported by the AI service.</p>
+          <p className="mt-2 text-xs text-gray-500">No evaluation metrics are stored.</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <p className="text-sm text-gray-500">Last training date</p>
+          <p className="mt-2 text-xl font-semibold text-gray-900">{summary?.last_training_date || 'Not stored'}</p>
         </div>
       </div>
+
+      <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-100 p-6">
+          <h2 className="font-semibold text-gray-800">Recent prediction history</h2>
+        </div>
+        {predictionError && <p role="alert" className="p-5 text-sm text-red-700">{predictionError}</p>}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px] text-left text-sm">
+            <thead className="bg-gray-50 text-gray-600">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Date</th>
+                <th className="px-4 py-3 font-semibold">Prediction</th>
+                <th className="px-4 py-3 font-semibold">Confidence</th>
+                <th className="px-4 py-3 font-semibold">Model version</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {predictionsLoading ? (
+                <tr><td colSpan="4" className="p-6 text-center text-gray-500">Loading stored predictions...</td></tr>
+              ) : predictions.length === 0 ? (
+                <tr><td colSpan="4" className="p-6 text-center text-gray-500">No prediction history is stored.</td></tr>
+              ) : predictions.map((scan) => (
+                <tr key={scan.id}>
+                  <td className="px-4 py-3 text-gray-600">{scan.created_at ? new Date(scan.created_at).toLocaleString() : 'Not recorded'}</td>
+                  <td className="px-4 py-3 text-gray-800">{scan.detected_disease || 'No detection recorded'}</td>
+                  <td className="px-4 py-3 text-gray-600">{scan.confidence == null ? 'Not recorded' : `${(Number(scan.confidence) * 100).toFixed(1)}%`}</td>
+                  <td className="px-4 py-3 text-gray-600">{scan.prediction?.model_version || 'Not stored'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="font-semibold text-gray-800">Service availability</h2>

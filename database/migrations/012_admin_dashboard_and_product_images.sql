@@ -17,6 +17,9 @@ INSERT INTO public.system_settings (setting_key, setting_value, description) VAL
     ('password_require_special', 'true', 'Passwords must contain at least one special character.'),
     ('password_expiry_days', '90', 'Force password change after this many days.'),
     ('session_auto_logout_minutes', '15', 'Auto-logout after this many minutes of inactivity.'),
+    ('session_token_lifetime_minutes', '60', 'Access token lifetime in minutes.'),
+    ('login_rate_limit_per_minute', '5', 'Maximum login attempts per minute per client.'),
+    ('api_rate_limit_per_minute', '120', 'Maximum API requests per minute per client.'),
     ('enforce_mfa_for_admins', 'false', 'Require multi-factor authentication for admin accounts.')
 ON CONFLICT (setting_key) DO NOTHING;
 
@@ -71,18 +74,49 @@ ALTER TABLE public.role_permissions
 CREATE UNIQUE INDEX IF NOT EXISTS role_permissions_role_module_action_key
     ON public.role_permissions (role, module, action);
 
-INSERT INTO public.role_permissions (role, module, permission, action) VALUES
-    ('farmer', 'Farm Data', 'allowed', 'Read: Own Farm Data'),
-    ('farmer', 'Farm Data', 'allowed', 'Write: Own Farm Data'),
-    ('farmer', 'Farm Data', 'restricted', 'Read: Other Farms'),
-    ('farmer', 'Security', 'restricted', 'Write: Security Settings'),
-    ('buyer', 'Marketplace', 'allowed', 'Read: Active Listings'),
-    ('buyer', 'Marketplace', 'allowed', 'Write: Own Cart and Orders'),
-    ('buyer', 'Farmer Data', 'restricted', 'Read: Farm Operational Data'),
-    ('admin', 'Platform', 'allowed', 'Read: All Platform Data'),
-    ('admin', 'Platform', 'allowed', 'Write: Users, Categories, Settings'),
-    ('admin', 'Farmer Data', 'restricted', 'Read: Private Farm Records')
-ON CONFLICT DO NOTHING;
+WITH roles(role) AS (
+    VALUES ('admin'), ('farmer'), ('buyer')
+),
+modules(module) AS (
+    VALUES
+        ('Platform Dashboard'),
+        ('User Management'),
+        ('Farm Management'),
+        ('Marketplace Monitor'),
+        ('Categories'),
+        ('AI Monitoring'),
+        ('Blockchain Monitoring'),
+        ('Roles & Permissions'),
+        ('Data Classification'),
+        ('Audit Logs'),
+        ('Security Settings'),
+        ('My Farms'),
+        ('Marketplace'),
+        ('Farm Data'),
+        ('Private Farm Records')
+),
+actions(action) AS (
+    VALUES ('Read'), ('Write')
+)
+INSERT INTO public.role_permissions (role, module, permission, action)
+SELECT
+    roles.role,
+    modules.module,
+    CASE
+        WHEN roles.role = 'admin'
+            THEN CASE WHEN modules.module IN ('Farm Data', 'Private Farm Records')
+                THEN 'restricted' ELSE 'allowed' END
+        WHEN roles.role = 'farmer' AND modules.module IN ('My Farms', 'Marketplace', 'Farm Data')
+            THEN 'allowed'
+        WHEN roles.role = 'buyer' AND modules.module = 'Marketplace'
+            THEN 'allowed'
+        ELSE 'restricted'
+    END,
+    actions.action
+FROM roles
+CROSS JOIN modules
+CROSS JOIN actions
+ON CONFLICT (role, module, action) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS public.data_classification (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -149,7 +183,4 @@ VALUES (
     5242880,
     ARRAY['image/jpeg', 'image/png', 'image/webp']
 )
-ON CONFLICT (id) DO UPDATE
-SET public = TRUE,
-    file_size_limit = 5242880,
-    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
+ON CONFLICT (id) DO NOTHING;
