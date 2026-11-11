@@ -87,6 +87,25 @@ def _require_admin(user: dict) -> None:
         raise HTTPException(status_code=403, detail="Administrators only.")
 
 
+def _attach_category_names(products: list[dict]) -> None:
+    category_ids = {product["category_id"] for product in products if product.get("category_id")}
+    if not category_ids:
+        return
+
+    categories = (
+        supabase.table("marketplace_categories")
+        .select("id,name")
+        .in_("id", list(category_ids))
+        .execute()
+        .data
+        or []
+    )
+    category_by_id = {category["id"]: category["name"] for category in categories}
+    for product in products:
+        if product.get("category_id"):
+            product["category"] = category_by_id.get(product["category_id"])
+
+
 def _product_image_storage_failure(exc: Exception) -> HTTPException:
     error_parts = (
         str(exc),
@@ -303,6 +322,7 @@ def get_products(category_id: Optional[str] = None):
     products = q.execute().data or []
     if not products:
         return []
+    _attach_category_names(products)
     sellers = (
         supabase.table("profiles")
         .select("id,full_name,farm_name,location")
@@ -330,6 +350,7 @@ def get_product(product_id: str):
     if not response.data:
         raise HTTPException(status_code=404, detail="Product not found.")
     product = response.data[0]
+    _attach_category_names([product])
     seller = (
         supabase.table("profiles")
         .select("full_name,farm_name,location")
@@ -423,10 +444,6 @@ def create_product(body: ProductCreate, current_user: dict = Depends(get_current
         "image_url": body.image_url,
         "status": "Available",
     }
-    if body.category_id:
-        cat = supabase.table("marketplace_categories").select("name").eq("id", body.category_id).limit(1).execute()
-        if cat.data:
-            row["category"] = cat.data[0]["name"]
 
     response = supabase.table("marketplace_products").insert(row).execute()
     if not response.data:

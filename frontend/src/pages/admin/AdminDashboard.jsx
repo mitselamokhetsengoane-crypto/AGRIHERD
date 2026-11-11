@@ -39,6 +39,7 @@ import {
   Server,
   Database,
   Cpu,
+  Package,
 } from 'lucide-react';
 
 ChartJS.register(

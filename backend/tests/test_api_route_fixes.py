@@ -440,6 +440,52 @@ class TestMarketplaceImageUpload(unittest.TestCase):
     def tearDown(self):
         api.dependency_overrides.pop(get_current_user, None)
 
+    def test_create_product_only_inserts_schema_supported_category_id(self):
+        products_table = mock_table([{
+            "id": "product-id",
+            "seller_id": "seller-id",
+            "category_id": "category-id",
+            "name": "Maize",
+        }])
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.table.return_value = products_table
+            response = client.post(
+                "/api/v1/marketplace/products",
+                json={
+                    "name": "Maize",
+                    "category_id": "category-id",
+                    "price": 12.5,
+                    "quantity_available": 10,
+                    "unit": "kg",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        inserted_product = products_table.insert.call_args.args[0]
+        self.assertEqual(inserted_product["category_id"], "category-id")
+        self.assertNotIn("category", inserted_product)
+
+    def test_product_list_resolves_category_name_from_category_id(self):
+        products_table = mock_table([{
+            "id": "product-id",
+            "seller_id": "seller-id",
+            "category_id": "category-id",
+            "name": "Maize",
+        }])
+        categories_table = mock_table([{"id": "category-id", "name": "Grains"}])
+        profiles_table = mock_table([{"id": "seller-id", "full_name": "Seller"}])
+        tables = {
+            "marketplace_products": products_table,
+            "marketplace_categories": categories_table,
+            "profiles": profiles_table,
+        }
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.table.side_effect = tables.get
+            response = client.get("/api/v1/marketplace/products")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["category"], "Grains")
+
     def test_seller_uploads_image_file_to_product_storage(self):
         image_buffer = BytesIO()
         Image.new("RGB", (4, 4), color="green").save(image_buffer, format="PNG")
