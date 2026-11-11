@@ -9,9 +9,12 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
   const marketplacePath = marketplaceBasePath(user?.role);
+  
+  // Idempotency key prevents duplicate orders if the user clicks "Place Order" twice
   const idempotencyKey = useRef(
     window.sessionStorage.getItem('marketplace-checkout-key') || crypto.randomUUID()
   );
+  
   const [cart, setCart] = useState(null);
   const [cartLoading, setCartLoading] = useState(true);
   const [loading, setLoading] = useState(false);

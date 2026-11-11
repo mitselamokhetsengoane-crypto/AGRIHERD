@@ -1,2 +1,6 @@
-export const marketplaceBasePath = (role) =>
-  role === 'buyer' ? '/buyer/marketplace' : '/marketplace';
+export const marketplaceBasePath = (role) => {
+  if (role === 'buyer') {
+    return '/buyer/marketplace';
+  }
+  return '/app/marketplace';
+};

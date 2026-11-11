@@ -11,14 +11,14 @@ const Sidebar = ({ closeMobile }) => {
     { name: 'Finance', path: '/app/finance', icon: 'finance' },
     { name: 'My Listings', path: '/app/marketplace/listings', icon: 'marketplace' },
     { name: 'Orders Received', path: '/app/marketplace/orders', icon: 'cart' },
-    { name: 'Browse Marketplace', path: '/marketplace', icon: 'marketplace' },
+    { name: 'Browse Marketplace', path: '/app/marketplace', icon: 'marketplace' },
     { name: 'Disease Scanner', path: '/app/disease-scanner', icon: 'scanner' },
     { name: 'Notifications', path: '/app/notifications', icon: 'notification' },
   ];
 
   return (
     <aside className="w-64 bg-white shadow-md flex flex-col h-full">
-      <div className="h-16 flex items-center justify-center gap-2 border-b border-gray-100">
+      <div className="h-16 flex items-center justify-center gap-2 border-b border-gray-100 shrink-0">
         <img src="/logo.jpeg" alt="AgriHerd" className="h-12 w-10 rounded-full object-cover" />
         <h2 className="text-2xl font-bold text-primary tracking-wide">AgriHerd</h2>
       </div>
