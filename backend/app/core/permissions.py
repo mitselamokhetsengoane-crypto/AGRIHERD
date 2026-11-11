@@ -110,7 +110,7 @@ def require_admin_module(module: str, action: str = "Read"):
             if _missing_permission_table(exc):
                 logger.warning(
                     "role_permissions is unavailable; using the code-defined admin "
-                    "baseline for module %s. Apply migration 012.",
+                    "baseline for module %s. Verify database/schema.sql.",
                     module,
                 )
                 return current_user

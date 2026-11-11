@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import authService from '../../services/authService';
 import BackButton from '../../components/common/BackButton';
+import { getErrorMessage } from '../../services/api';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -24,7 +25,7 @@ const Login = () => {
       else if (data.user.role === 'buyer') navigate('/buyer/dashboard');
       else navigate('/app/dashboard');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid email or password.');
+      setError(getErrorMessage(err, 'Invalid email or password.'));
     } finally {
       setLoading(false);
     }

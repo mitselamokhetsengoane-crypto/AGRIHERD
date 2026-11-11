@@ -25,14 +25,6 @@ _configured_origins = {
 }
 ORIGINS = sorted(_default_origins | _configured_origins)
 
-api.add_middleware(
-    CORSMiddleware,
-    allow_origins=ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    max_age=600,
-)
 api.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
@@ -87,4 +79,12 @@ def root():
 def health():
     return {"status": "ok"}
 
-app = api
+# Wrap the whole ASGI app so CORS headers are also present on unhandled errors.
+app = CORSMiddleware(
+    app=api,
+    allow_origins=ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    max_age=600,
+)

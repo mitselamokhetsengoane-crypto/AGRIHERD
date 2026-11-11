@@ -145,8 +145,11 @@ def blockchain_all(
         ):
             raise HTTPException(
                 status_code=503,
-                detail="Blockchain monitoring schema is missing. Apply "
-                "database/migrations/014_admin_farm_monitoring.sql.",
+                detail=(
+                    "Blockchain monitoring schema is missing. Verify that "
+                    "database/schema.sql has been applied to the Supabase project "
+                    "configured for this backend."
+                ),
             ) from exc
         logger.exception("Could not load blockchain records.")
         raise HTTPException(status_code=503, detail="Could not load blockchain records.") from exc

@@ -92,7 +92,7 @@ def ensure_admin_defaults():
             ).execute()
         except Exception:
             logger.exception(
-                "Could not ensure %s defaults. Verify migration 012 is applied to "
-                "the Supabase project configured for this backend.",
+                "Could not ensure %s defaults. Verify database/schema.sql has been "
+                "applied to the Supabase project configured for this backend.",
                 table,
             )

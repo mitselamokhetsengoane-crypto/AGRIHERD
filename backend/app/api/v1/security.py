@@ -11,7 +11,7 @@ from app.services.audit_service import AuditService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-ADMIN_SCHEMA_MIGRATION = "database/migrations/012_admin_dashboard_and_product_images.sql"
+SCHEMA_FILE = "database/schema.sql"
 
 
 class RoleUpdate(BaseModel):
@@ -56,8 +56,10 @@ def _raise_admin_table_error(exc: Exception, table: str):
     if _missing_table(exc, table):
         raise HTTPException(
             status_code=503,
-            detail=f"Database table public.{table} is missing. Apply {ADMIN_SCHEMA_MIGRATION} "
-            "to the Supabase project configured for this backend.",
+            detail=(
+                f"Database table public.{table} is missing. Verify that {SCHEMA_FILE} "
+                "has been applied to the Supabase project configured for this backend."
+            ),
         ) from exc
     logger.exception("Could not read the admin table %s.", table)
     raise HTTPException(status_code=503, detail=f"Could not read database table public.{table}.") from exc
@@ -96,8 +98,10 @@ def get_role_permissions(current_user: dict = Depends(require_admin_module("Role
     if not response.data:
         raise HTTPException(
             status_code=503,
-            detail=f"Database table public.role_permissions exists but is empty. "
-            f"Apply {ADMIN_SCHEMA_MIGRATION} and verify the backend's Supabase project.",
+            detail=(
+                "Database table public.role_permissions exists but is empty. "
+                f"Verify {SCHEMA_FILE} and the backend's Supabase project."
+            ),
         )
     return response.data
 
@@ -127,8 +131,10 @@ def get_system_settings(current_user: dict = Depends(require_admin_module("Secur
     if not response.data:
         raise HTTPException(
             status_code=503,
-            detail=f"Database table public.system_settings exists but is empty. "
-            f"Apply {ADMIN_SCHEMA_MIGRATION} and verify the backend's Supabase project.",
+            detail=(
+                "Database table public.system_settings exists but is empty. "
+                f"Verify {SCHEMA_FILE} and the backend's Supabase project."
+            ),
         )
     return response.data
 
@@ -162,23 +168,23 @@ def get_system_health(current_user: dict = Depends(require_admin_module("Securit
     try:
         supabase.table("role_permissions").select("permission,action").limit(1).execute()
         supabase.table("system_settings").select("setting_key").limit(1).execute()
-        migration_applied = True
+        admin_schema_available = True
     except Exception as exc:
-        logger.warning("Admin migration schema check failed (%s).", type(exc).__name__)
-        migration_applied = False
+        logger.warning("Admin schema check failed (%s).", type(exc).__name__)
+        admin_schema_available = False
 
     try:
         supabase.table("farms").select("status").limit(1).execute()
         supabase.table("blockchain_records").select("network,status").limit(1).execute()
-        farm_monitoring_migration_applied = True
+        farm_monitoring_schema_available = True
     except Exception as exc:
-        logger.warning("Farm monitoring migration check failed (%s).", type(exc).__name__)
-        farm_monitoring_migration_applied = False
+        logger.warning("Farm monitoring schema check failed (%s).", type(exc).__name__)
+        farm_monitoring_schema_available = False
 
     return {
         "database_connected": "users" not in errors,
-        "migration_012_applied": migration_applied,
-        "migration_014_applied": farm_monitoring_migration_applied,
+        "admin_schema_available": admin_schema_available,
+        "farm_monitoring_schema_available": farm_monitoring_schema_available,
         "table_counts": counts,
         "unavailable_tables": errors,
     }
@@ -410,8 +416,10 @@ def get_all_farms(
         if _missing_column(exc, "status"):
             raise HTTPException(
                 status_code=503,
-                detail="Farm status schema is missing. Apply "
-                "database/migrations/014_admin_farm_monitoring.sql.",
+                detail=(
+                    "Farm status schema is missing. Verify that database/schema.sql "
+                    "has been applied to the Supabase project configured for this backend."
+                ),
             ) from exc
         logger.exception("Could not load administrator farm list.")
         raise HTTPException(status_code=503, detail="Could not load farm management data.") from exc

@@ -120,8 +120,11 @@ def register(user: UserRegister):
             logger.error(f"Could not delete orphan auth user {user_id}: {cleanup_exc}")
         raise HTTPException(
             status_code=503,
-            detail="Could not confirm the registration record. Verify migration "
-            "014_admin_farm_monitoring.sql and retry.",
+            detail=(
+                "Could not confirm the registration record. Verify that "
+                "database/schema.sql has been applied to the Supabase project "
+                "configured for this backend."
+            ),
         ) from exc
 
     if not profile_response.data:
@@ -135,8 +138,11 @@ def register(user: UserRegister):
             logger.error("Could not clean up unprofiled auth user %s: %s", user_id, cleanup_exc)
         raise HTTPException(
             status_code=503,
-            detail="The profile/farm registration trigger is missing. Apply "
-            "database/migrations/014_admin_farm_monitoring.sql.",
+            detail=(
+                "The profile/farm registration trigger is missing. Verify that "
+                "database/schema.sql has been applied to the Supabase project "
+                "configured for this backend."
+            ),
         )
 
     initial_status = (profile_response.data[0].get("account_status") or "").upper()

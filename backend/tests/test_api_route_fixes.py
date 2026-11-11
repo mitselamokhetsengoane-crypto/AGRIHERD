@@ -116,17 +116,37 @@ class TestMissingApiRoutes(unittest.TestCase):
 
     def test_cors_header_is_returned_for_unhandled_server_errors(self):
         test_client = TestClient(app, raise_server_exceptions=False)
-        with patch("app.api.v1.dashboard.supabase") as supabase_mock:
+        with (
+            patch("app.api.v1.dashboard.supabase") as supabase_mock,
+            patch("app.core.permissions.supabase") as permissions_db,
+        ):
             supabase_mock.table.side_effect = RuntimeError("Database unavailable")
+            permissions_db.table.return_value = mock_table([{"permission": "allowed"}])
             response = test_client.get(
                 "/api/v1/dashboard/summary",
-                headers={"Origin": "https://agriherd-1.onrender.com"},
+                headers={"Origin": "https://agriherd-admin.onrender.com"},
             )
 
         self.assertEqual(response.status_code, 500)
         self.assertEqual(
             response.headers["access-control-allow-origin"],
-            "https://agriherd-1.onrender.com",
+            "https://agriherd-admin.onrender.com",
+        )
+
+    def test_admin_frontend_cors_preflight_is_allowed(self):
+        response = client.options(
+            "/api/v1/auth/login",
+            headers={
+                "Origin": "https://agriherd-admin.onrender.com",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.headers["access-control-allow-origin"],
+            "https://agriherd-admin.onrender.com",
         )
 
 
@@ -225,7 +245,7 @@ class TestMarketplaceBuyerRoutes(unittest.TestCase):
         )
         self.assertEqual(response.json()["item_count"], 0)
 
-    def test_add_to_cart_reports_when_checkout_migration_rpc_is_not_installed(self):
+    def test_add_to_cart_reports_when_checkout_rpc_is_not_installed(self):
         with patch("app.api.v1.marketplace.supabase") as supabase_mock:
             supabase_mock.rpc.return_value.execute.side_effect = Exception(
                 "PGRST202: Could not find the function "
@@ -237,7 +257,7 @@ class TestMarketplaceBuyerRoutes(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 503)
-        self.assertIn("011_buyer_marketplace_checkout.sql", response.json()["detail"])
+        self.assertIn("database/schema.sql", response.json()["detail"])
 
     def test_add_to_cart_reports_missing_rpc_execute_permission(self):
         with patch("app.api.v1.marketplace.supabase") as supabase_mock:
@@ -251,7 +271,7 @@ class TestMarketplaceBuyerRoutes(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 503)
-        self.assertIn("013_marketplace_cart_rpc_permissions.sql", response.json()["detail"])
+        self.assertIn("service-role grants", response.json()["detail"])
         self.assertIn("service-role key", response.json()["detail"])
 
     def test_add_to_cart_reports_missing_cart_table_after_rpc(self):
@@ -268,7 +288,7 @@ class TestMarketplaceBuyerRoutes(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 503)
-        self.assertIn("002_cart_orders.sql", response.json()["detail"])
+        self.assertIn("database/schema.sql", response.json()["detail"])
 
     def test_cart_returns_buyer_items_and_calculated_totals(self):
         cart_table = mock_table([{"id": "cart-id", "buyer_id": "buyer-id"}])
@@ -441,7 +461,7 @@ class TestMarketplaceImageUpload(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 503)
-        self.assertIn("012_admin_dashboard_and_product_images.sql", response.json()["detail"])
+        self.assertIn("database/schema.sql", response.json()["detail"])
 
     def test_storage_permission_failure_points_to_backend_service_key(self):
         image_buffer = BytesIO()
@@ -510,7 +530,7 @@ class TestAdminDashboardAndNotifications(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertIn("exists but is empty", response.json()["detail"])
 
-    def test_settings_reports_a_missing_table_and_migration(self):
+    def test_settings_reports_a_missing_table_and_schema_file(self):
         with (
             patch("app.core.permissions.supabase") as permissions_db,
             patch("app.api.v1.security.supabase") as security_db,
@@ -525,7 +545,7 @@ class TestAdminDashboardAndNotifications(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
         self.assertIn("public.system_settings is missing", response.json()["detail"])
-        self.assertIn("012_admin_dashboard_and_product_images.sql", response.json()["detail"])
+        self.assertIn("database/schema.sql", response.json()["detail"])
 
     def test_setting_change_is_persisted_and_audited(self):
         setting = {"setting_key": "password_min_length", "setting_value": "10"}

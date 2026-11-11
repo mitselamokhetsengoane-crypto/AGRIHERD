@@ -101,7 +101,8 @@ def _product_image_storage_failure(exc: Exception) -> HTTPException:
             status_code=503,
             detail=(
                 f"The '{settings.PRODUCT_IMAGE_BUCKET}' storage bucket is missing. "
-                "Apply database/migrations/012_admin_dashboard_and_product_images.sql in Supabase."
+                "Verify that database/schema.sql has been applied to the configured "
+                "Supabase project."
             ),
         )
     if any(term in message for term in ("row-level security", "unauthorized", "not authorized", "403")):
@@ -196,9 +197,9 @@ def _raise_marketplace_rpc_error(exc: Exception, operation: str) -> None:
         raise HTTPException(
             status_code=503,
             detail=(
-                "The backend's Supabase role cannot execute the cart function. Apply "
-                "database/migrations/013_marketplace_cart_rpc_permissions.sql and verify "
-                "Render uses the service-role key for this same Supabase project."
+                "The backend's Supabase role cannot execute the cart function. Verify "
+                "database/schema.sql includes its service-role grants and that Render "
+                "uses the service-role key for this same Supabase project."
             ),
         ) from exc
     if (
@@ -211,8 +212,8 @@ def _raise_marketplace_rpc_error(exc: Exception, operation: str) -> None:
             status_code=503,
             detail=(
                 "Marketplace database functions are not installed or not yet visible. "
-                "Apply database/migrations/011_buyer_marketplace_checkout.sql in Supabase, "
-                "then reload the API schema cache or restart the backend."
+                "Verify database/schema.sql has been applied, then reload the Supabase "
+                "API schema cache or restart the backend."
             ),
         ) from exc
     if (
@@ -227,10 +228,9 @@ def _raise_marketplace_rpc_error(exc: Exception, operation: str) -> None:
         raise HTTPException(
             status_code=503,
             detail=(
-                "The Supabase marketplace schema is incomplete. Apply migrations "
-                "database/migrations/002_cart_orders.sql and "
-                "database/migrations/011_buyer_marketplace_checkout.sql, then reload "
-                "the Supabase API schema cache."
+                "The Supabase marketplace schema is incomplete. Verify that "
+                "database/schema.sql has been applied to the configured project, "
+                "then reload the Supabase API schema cache."
             ),
         ) from exc
     if "cart item not found" in lowered or "product not found" in lowered:

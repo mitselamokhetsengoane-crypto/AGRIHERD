@@ -91,7 +91,7 @@ class TestAuthLogin(unittest.TestCase):
             )
 
         assert response.status_code == 503
-        assert "014_admin_farm_monitoring.sql" in response.json()["detail"]
+        assert "database/schema.sql" in response.json()["detail"]
         create_client_mock.return_value.auth.admin.delete_user.assert_called_once_with(
             "orphaned-user-id"
         )
