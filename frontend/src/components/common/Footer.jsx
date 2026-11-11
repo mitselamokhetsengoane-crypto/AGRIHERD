@@ -1,19 +1,33 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 
-const Footer = () => {
-  const showLegalLinks = import.meta.env.VITE_APP_MODE !== 'admin';
+const Footer = ({ isAdmin = false }) => {
+  const isActuallyAdmin = isAdmin || import.meta.env.VITE_APP_MODE === 'admin';
 
   return (
-    <footer className="footer-fixed flex justify-center items-center text-xs text-gray-500 text-center">
-      <div className="w-full">
-        &copy; {new Date().getFullYear()} AgriHerd. All rights reserved.
-        {showLegalLinks && (
-          <nav className="legal-footer-links" aria-label="Legal">
-            <Link to="/privacy">Privacy</Link>
-            <Link to="/terms">Terms</Link>
-          </nav>
-        )}
+    <footer className="footer-fixed flex flex-col sm:flex-row items-center justify-between gap-2 px-6 py-3.5 bg-white border-t border-gray-100 text-xs text-subtext shrink-0">
+      <div className="flex items-center gap-1.5">
+        <span className="font-semibold text-primary">AgriHerd</span>
+        <span>&copy; {new Date().getFullYear()}</span>
+        <span>&bull;</span>
+        <span>Agricultural Technology Platform</span>
       </div>
+
+      {!isActuallyAdmin ? (
+        <nav className="flex items-center gap-4 text-xs font-medium" aria-label="Footer Legal Links">
+          <Link to="/privacy" className="text-subtext hover:text-primary transition">
+            Privacy Policy
+          </Link>
+          <span className="text-gray-300">&bull;</span>
+          <Link to="/terms" className="text-subtext hover:text-primary transition">
+            Terms of Service
+          </Link>
+        </nav>
+      ) : (
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-navy-light">
+          Enterprise Administration
+        </span>
+      )}
     </footer>
   );
 };

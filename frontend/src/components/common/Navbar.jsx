@@ -1,48 +1,95 @@
 import { useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import BackButton from './BackButton';
-import AppIcon from './AppIcon';
 import NotificationBell from './NotificationBell';
+import { Menu, LogOut, UserRound } from 'lucide-react';
+
+const routeTitles = {
+  '/app/dashboard': 'Farm Dashboard',
+  '/app/crops': 'Crop Management',
+  '/app/crops/add': 'Add New Crop',
+  '/app/livestock': 'Livestock Management',
+  '/app/livestock/add': 'Add Livestock Animal',
+  '/app/inventory': 'Farm Inventory',
+  '/app/inventory/add': 'Add Inventory Item',
+  '/app/finance': 'Financial Management',
+  '/app/finance/income': 'Farm Income',
+  '/app/finance/expenses': 'Farm Expenses',
+  '/app/finance/reports': 'Financial Reports',
+  '/app/tasks': 'Tasks & Scheduling',
+  '/app/tasks/add': 'Create Task',
+  '/app/tasks/calendar': 'Task Calendar',
+  '/app/disease-scanner': 'Crop Disease Scanner',
+  '/app/marketplace': 'AgriHerd Marketplace',
+  '/app/marketplace/listings': 'My Product Listings',
+  '/app/marketplace/orders': 'Orders Received',
+  '/app/notifications': 'Notifications',
+  '/app/profile': 'Farmer Profile',
+};
 
 const Navbar = ({ toggleSidebar }) => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const currentTitle = routeTitles[location.pathname] || 'Farmer Portal';
+
   return (
-    <header className="bg-white shadow-sm h-16 flex items-center justify-between px-4 md:px-6 z-10">
-      <div className="flex items-center">
-        <BackButton fallbackPath="/app/dashboard" className="mr-3" compact />
-        <button 
+    <header className="header-fixed flex items-center justify-between px-4 sm:px-6 bg-white border-b border-gray-100 z-20">
+      <div className="flex items-center gap-3">
+        <BackButton fallbackPath="/app/dashboard" compact />
+        <button
+          type="button"
           onClick={toggleSidebar}
-          className="md:hidden mr-4 text-subtext hover:text-primary focus:outline-none"
+          className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 focus:outline-none"
           aria-label="Open navigation menu"
         >
-          <AppIcon name="menu" className="h-6 w-6" />
+          <Menu className="h-5 w-5" />
         </button>
-        <img src="/logo.jpeg" alt="AgriHerd" className="h-10 w-8 rounded-full object-cover mr-2" />
-        <h1 className="text-xl font-bold text-primary">Farm Dashboard</h1>
+
+        <div>
+          <h1 className="text-base sm:text-lg font-bold text-maintext">
+            {currentTitle}
+          </h1>
+        </div>
       </div>
-      
-      <div className="flex items-center space-x-6">
-        <NotificationBell />
-        <Link to="/profile" className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold text-sm">
-            {user?.full_name?.charAt(0) || <AppIcon name="profile" className="h-4 w-4" />}
-          </div>
-          <span className="hidden md:block text-sm font-medium text-maintext">{user?.full_name || 'User'}</span>
-        </Link>
-        <button 
-          onClick={handleLogout}
-          className="inline-flex items-center gap-2 text-error text-sm font-medium hover:underline"
+
+      <div className="flex items-center gap-3 sm:gap-4">
+        <NotificationBell to="/app/notifications" />
+
+        <div className="h-4 w-px bg-gray-200 hidden sm:block" />
+
+        <Link
+          to="/app/profile"
+          className="flex items-center gap-2 rounded-lg p-1 hover:bg-gray-50 transition"
         >
-          <AppIcon name="logout" className="h-4 w-4" />
-          Logout
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-light text-primary font-bold text-xs ring-2 ring-primary/10">
+            {user?.full_name ? user.full_name.charAt(0).toUpperCase() : <UserRound className="h-4 w-4" />}
+          </div>
+          <div className="hidden sm:block text-left">
+            <span className="block text-xs font-bold text-maintext leading-tight">
+              {user?.full_name || 'Farmer'}
+            </span>
+            <span className="block text-[11px] text-subtext leading-tight">
+              {user?.role ? user.role.toUpperCase() : 'FARMER'}
+            </span>
+          </div>
+        </Link>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          aria-label="Sign out"
+          title="Sign out"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-error transition"
+        >
+          <LogOut className="h-4 w-4" />
         </button>
       </div>
     </header>

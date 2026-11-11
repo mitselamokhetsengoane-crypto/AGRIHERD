@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import cropService from '../../services/cropService';
-import { getStatusColor, formatDate } from '../../utils/formatters';
+import { formatDate } from '../../utils/formatters';
+import PageHeader from '../../components/common/PageHeader';
+import StatusBadge from '../../components/common/StatusBadge';
+import EmptyState from '../../components/common/EmptyState';
+import LoadingIndicator from '../../components/common/LoadingIndicator';
+import { Plus, Sprout, ArrowRight, Calendar, MapPin } from 'lucide-react';
 
 const Crops = () => {
   const [crops, setCrops] = useState([]);
@@ -11,9 +16,9 @@ const Crops = () => {
     const fetchCrops = async () => {
       try {
         const data = await cropService.getAllCrops();
-        setCrops(data);
+        setCrops(data || []);
       } catch (error) {
-        console.error(error);
+        console.error('Failed to load crops:', error);
       } finally {
         setLoading(false);
       }
@@ -21,38 +26,77 @@ const Crops = () => {
     fetchCrops();
   }, []);
 
-  if (loading) return <div className="p-8 text-center text-subtext">Loading crops...</div>;
+  if (loading) return <LoadingIndicator label="Loading crops & fields..." />;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-maintext">Crops & Fields</h1>
-        <Link to="/crops/add" className="bg-primary text-white px-4 py-2 rounded-md hover:bg-green-800 transition">+ Add Crop</Link>
-      </div>
+      <PageHeader
+        title="Crops & Fields"
+        subtitle="Monitor field plots, planting schedules, growth stages, and harvest yields."
+      >
+        <Link
+          to="/app/crops/add"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-primary-hover transition"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Add New Crop</span>
+        </Link>
+      </PageHeader>
 
       {crops.length === 0 ? (
-        <div className="bg-white p-8 text-center rounded-xl shadow-sm border border-gray-100">
-          <p className="text-subtext">No crops found. Start by adding a new crop.</p>
-        </div>
+        <EmptyState
+          icon={<Sprout className="h-8 w-8 text-secondary" />}
+          title="No Crops Planted Yet"
+          description="Register your first field crop to track its growth stages and harvest yields."
+          actionText="Add First Crop"
+          actionLink="/app/crops/add"
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {crops.map((crop) => (
-            <div key={crop.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-maintext">{crop.name}</h3>
-                  <p className="text-sm text-subtext">{crop.field_name} • {crop.field_size}</p>
+            <div
+              key={crop.id}
+              className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition hover:border-gray-200 hover:shadow-md"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-secondary">
+                      <Sprout className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-maintext line-clamp-1">
+                        {crop.name}
+                      </h3>
+                      {crop.variety && (
+                        <p className="text-xs text-subtext">{crop.variety}</p>
+                      )}
+                    </div>
+                  </div>
+                  <StatusBadge status={crop.status || 'Active'} size="xs" />
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(crop.status)}`}>
-                  {crop.status}
-                </span>
+
+                <div className="space-y-1.5 py-2 text-xs text-subtext border-t border-gray-50">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                    <span>{crop.field_name || 'Main Field'} {crop.field_size ? `(${crop.field_size})` : ''}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                    <span>Planted: {formatDate(crop.planting_date)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center">
-                <div>
-                  <p className="text-xs text-subtext">Planted</p>
-                  <p className="font-medium text-maintext text-sm">{formatDate(crop.planting_date)}</p>
-                </div>
-                <Link to={`/crops/${crop.id}`} className="text-primary text-sm font-medium hover:underline">Manage</Link>
+
+              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-xs font-semibold text-subtext">Field Plot</span>
+                <Link
+                  to={`/app/crops/${crop.id}`}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                >
+                  <span>Manage Records</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
             </div>
           ))}

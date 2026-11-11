@@ -1,19 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import taskService from '../../services/taskService';
-import { formatDate, getStatusColor } from '../../utils/formatters';
+import { formatDate } from '../../utils/formatters';
+import PageHeader from '../../components/common/PageHeader';
+import DataTable from '../../components/common/DataTable';
+import StatusBadge from '../../components/common/StatusBadge';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import LoadingIndicator from '../../components/common/LoadingIndicator';
+import ErrorMessage from '../../components/common/ErrorMessage';
+import { Plus, CalendarDays, Eye, Trash2 } from 'lucide-react';
 
 const Tasks = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const data = await taskService.getAllTasks();
-      setTasks(data);
+      setTasks(data || []);
     } catch (requestError) {
       console.error('Error fetching tasks', requestError);
       setError('Tasks could not be loaded. Please try again.');
@@ -26,74 +34,116 @@ const Tasks = () => {
     fetchTasks();
   }, [fetchTasks]);
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      setError('');
-      setLoading(true);
-      try {
-      await taskService.deleteTask(id);
-        await fetchTasks();
-      } catch (requestError) {
-        console.error('Error deleting task', requestError);
-        setError('Task could not be deleted. Please try again.');
-        setLoading(false);
-      }
+  const handleConfirmDelete = async () => {
+    if (!deletingId) return;
+    try {
+      await taskService.deleteTask(deletingId);
+      setDeletingId(null);
+      await fetchTasks();
+    } catch (requestError) {
+      console.error('Error deleting task', requestError);
+      setError('Task could not be deleted. Please try again.');
     }
   };
 
-  if (loading) return <div role="status" className="p-4 text-primary">Loading tasks...</div>;
+  const columns = [
+    {
+      header: 'Task Name',
+      accessor: 'name',
+      render: (task) => (
+        <div>
+          <p className="font-bold text-maintext text-sm">{task.name}</p>
+          {task.description && (
+            <p className="text-xs text-subtext line-clamp-1">{task.description}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: 'Target Date',
+      accessor: 'date',
+      render: (task) => (
+        <span className="text-xs text-subtext font-medium">
+          {task.date || task.due_date ? formatDate(task.date || task.due_date) : '—'}
+        </span>
+      ),
+    },
+    {
+      header: 'Status',
+      accessor: 'status',
+      render: (task) => <StatusBadge status={task.status || 'Pending'} size="xs" />,
+    },
+    {
+      header: 'Actions',
+      align: 'right',
+      render: (task) => (
+        <div className="flex items-center justify-end gap-2">
+          <Link
+            to={`/app/tasks/${task.id}`}
+            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-maintext hover:bg-gray-50 transition"
+          >
+            <Eye className="h-3.5 w-3.5 text-subtext" />
+            <span>View</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setDeletingId(task.id)}
+            className="inline-flex items-center gap-1 rounded-lg border border-red-100 bg-red-50/60 px-2.5 py-1 text-xs font-semibold text-error hover:bg-red-100 transition"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Delete</span>
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  if (loading) return <LoadingIndicator label="Loading tasks..." />;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-maintext">All Tasks</h1>
-        <div className="space-x-3">
-          <Link to="/tasks/calendar" className="text-primary hover:underline">
-            View Calendar
+      <PageHeader
+        title="Farm Task Scheduling"
+        subtitle="Manage farm duties, feeding schedules, planting routines, and harvest timelines."
+      >
+        <div className="flex items-center gap-3">
+          <Link
+            to="/app/tasks/calendar"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-maintext shadow-sm hover:bg-gray-50 transition"
+          >
+            <CalendarDays className="h-4 w-4 text-primary" />
+            <span>Calendar View</span>
           </Link>
-          <Link to="/tasks/add" className="bg-primary text-white px-4 py-2 rounded-md hover:bg-green-800 transition">
-            + Add Task
+          <Link
+            to="/app/tasks/add"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-primary-hover transition"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create Task</span>
           </Link>
         </div>
-      </div>
-      {error && <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-error">{error}</p>}
+      </PageHeader>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-subtext text-sm border-b">
-            <tr>
-              <th className="p-4 font-medium">Task Name</th>
-              <th className="p-4 font-medium">Date</th>
-              <th className="p-4 font-medium">Status</th>
-              <th className="p-4 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {tasks.map((task) => (
-              <tr key={task.id} className="hover:bg-background transition">
-                <td className="p-4 font-medium text-maintext">{task.name}</td>
-                <td className="p-4 text-subtext">{formatDate(task.date)}</td>
-                <td className="p-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(task.status)}`}>
-                    {task.status}
-                  </span>
-                </td>
-                <td className="p-4 text-right space-x-3">
-                  <Link to={`/tasks/${task.id}`} className="text-primary hover:underline text-sm">
-                    View
-                  </Link>
-                  <button type="button" onClick={() => handleDelete(task.id)} className="text-error hover:underline text-sm">
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!error && tasks.length === 0 && (
-          <div className="p-8 text-center text-subtext">No tasks found. Create your first task to get started.</div>
-        )}
-      </div>
+      {error && <ErrorMessage message={error} onRetry={fetchTasks} />}
+
+      <DataTable
+        columns={columns}
+        data={tasks}
+        emptyTitle="No Tasks Scheduled"
+        emptyMessage="Create a task to keep track of daily and seasonal farm activities."
+        emptyActionText="Create First Task"
+        emptyActionLink="/app/tasks/add"
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(deletingId)}
+        onClose={() => setDeletingId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Farm Task"
+        message="Are you sure you want to permanently delete this task? This action cannot be undone."
+        confirmText="Delete Task"
+        isDanger={true}
+      />
     </div>
   );
 };

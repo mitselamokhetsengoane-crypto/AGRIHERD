@@ -9,16 +9,19 @@ const MainLayout = () => {
 
   return (
     <div className="app-shell bg-background">
-      {/* Fixed Sidebar */}
-      <div className="sidebar-fixed hidden md:block bg-white border-r border-gray-200">
+      {/* Desktop Fixed Sidebar */}
+      <div className="sidebar-fixed hidden md:block bg-white border-r border-gray-100">
         <Sidebar />
       </div>
 
-      {/* Mobile Sidebar Overlay */}
+      {/* Mobile Drawer Overlay */}
       {isSidebarOpen && (
-        <div className="fixed inset-0 z-40 flex md:hidden">
-          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setIsSidebarOpen(false)}></div>
-          <div className="relative flex flex-col w-64 bg-white h-full z-50">
+        <div className="fixed inset-0 z-40 flex md:hidden animate-fadeIn">
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+          <div className="relative flex flex-col w-72 max-w-[80vw] bg-white h-full z-50 shadow-2xl">
             <Sidebar closeMobile={() => setIsSidebarOpen(false)} />
           </div>
         </div>
@@ -26,17 +29,14 @@ const MainLayout = () => {
 
       {/* Main Content Area */}
       <div className="main-content-wrapper">
-        <div className="header-fixed bg-white border-b border-gray-200">
-          <Navbar toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
-        </div>
-        
+        <Navbar toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+
         <main className="content-scrollable">
-          <div className="max-w-7xl mx-auto">
+          <div className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
             <Outlet />
           </div>
+          <Footer />
         </main>
-
-        <Footer />
       </div>
     </div>
   );

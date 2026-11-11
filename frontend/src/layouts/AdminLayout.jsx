@@ -1,125 +1,248 @@
 import { useContext, useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import Footer from '../components/common/Footer';
 import BackButton from '../components/common/BackButton';
 import AppIcon from '../components/common/AppIcon';
 import NotificationBell from '../components/common/NotificationBell';
 import { AuthContext } from '../context/AuthContext';
+import { Menu, LogOut, ShieldCheck, Activity, X } from 'lucide-react';
 
-const iconShapes = {
-  dashboard: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
-  users: <><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="10" cy="7" r="4" /><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
-  farms: <><path d="m3 10 9-7 9 7" /><path d="M5 9v12h14V9M9 21v-7h6v7" /></>,
-  marketplace: <><path d="M3 9h18l-1.5-6h-15z" /><path d="M5 9v12h14V9M9 21v-7h6v7" /></>,
-  categories: <><rect x="3" y="3" width="8" height="8" rx="1" /><rect x="13" y="3" width="8" height="8" rx="1" /><rect x="3" y="13" width="8" height="8" rx="1" /><rect x="13" y="13" width="8" height="8" rx="1" /></>,
-  roles: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /><path d="m9 12 2 2 4-4" /></>,
-  classification: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5M3 16l9 5 9-5" /></>,
-  audit: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h8" /></>,
-  settings: <><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.5.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.5-.9l-1.7.7-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.8L6.3 13l1.4-2.4 1.7.7a8 8 0 0 1 1.5-.9l.3-1.8H14l.3 1.8a8 8 0 0 1 1.5.9l1.7-.7 1.4 2.4-1.4 1.1a7 7 0 0 1-.1.9Z" /></>,
-  ai: <><path d="M12 3v3M5.6 5.6l2.1 2.1M3 12h3M5.6 18.4l2.1-2.1M12 18v3M18.4 18.4l-2.1-2.1M18 12h3M18.4 5.6l-2.1 2.1" /><circle cx="12" cy="12" r="4" /></>,
-  blockchain: <><path d="M10 13a5 5 0 0 0 7.1 0l3-3A5 5 0 0 0 13 2.9l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.1 0l-3 3A5 5 0 0 0 11 21.1l1.7-1.7" /></>,
+const adminRouteTitles = {
+  '/admin/dashboard': 'Platform Overview',
+  '/admin/users': 'User Management & Approvals',
+  '/admin/farms': 'Farm Registry Management',
+  '/admin/marketplace': 'Marketplace Transactions & Monitoring',
+  '/admin/categories': 'Product Categories Management',
+  '/admin/ai': 'AI Diagnostic Model Management',
+  '/admin/blockchain': 'Blockchain Verification & Audit',
+  '/admin/roles': 'Roles & Permissions Control',
+  '/admin/classification': 'Data Classification & Governance',
+  '/admin/audit-logs': 'System Security Audit Logs',
+  '/admin/settings': 'Platform Security Settings',
+  '/admin/profile': 'Administrator Profile',
 };
-
-const AdminIcon = ({ name }) => (
-  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0">
-    {iconShapes[name]}
-  </svg>
-);
 
 const AdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { logout } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSignOut = () => { logout(); navigate('/login', { replace: true }); };
+  const handleSignOut = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const adminLinks = [
-    { name: 'Platform Dashboard', path: '/admin/dashboard', icon: 'dashboard' },
+    { name: 'Dashboard', path: '/admin/dashboard', icon: 'dashboard' },
     { name: 'User Management', path: '/admin/users', icon: 'users' },
     { name: 'Farm Management', path: '/admin/farms', icon: 'farms' },
-    { name: 'Marketplace Monitor', path: '/admin/marketplace', icon: 'marketplace' },
+    { name: 'Marketplace Monitoring', path: '/admin/marketplace', icon: 'marketplace' },
     { name: 'Categories', path: '/admin/categories', icon: 'categories' },
-    { name: 'AI Dashboard', path: '/admin/ai', icon: 'ai' },
+    { name: 'AI Management', path: '/admin/ai', icon: 'ai' },
     { name: 'Blockchain', path: '/admin/blockchain', icon: 'blockchain' },
     { name: 'Roles & Permissions', path: '/admin/roles', icon: 'roles' },
     { name: 'Data Classification', path: '/admin/classification', icon: 'classification' },
     { name: 'Audit Logs', path: '/admin/audit-logs', icon: 'audit' },
-    { name: 'Security Settings', path: '/admin/settings', icon: 'settings' },
+    { name: 'System Settings', path: '/admin/settings', icon: 'settings' },
+    { name: 'Profile', path: '/admin/profile', icon: 'profile' },
   ];
 
+  const currentTitle = adminRouteTitles[location.pathname] || 'Platform Administration';
+
+  const renderNav = (isMobile = false) => (
+    <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+      <div className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        Enterprise Administration
+      </div>
+      {adminLinks.map((link) => (
+        <NavLink
+          key={link.name}
+          to={link.path}
+          end={link.path === '/admin/dashboard'}
+          onClick={() => isMobile && setIsSidebarOpen(false)}
+          className={({ isActive }) =>
+            `group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+              isActive
+                ? 'bg-primary text-white shadow-sm shadow-primary/30'
+                : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+            }`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <AppIcon
+                name={link.icon}
+                className={`h-4 w-4 shrink-0 transition-colors ${
+                  isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'
+                }`}
+                strokeWidth={isActive ? 2.2 : 1.75}
+              />
+              <span className="truncate">{link.name}</span>
+            </>
+          )}
+        </NavLink>
+      ))}
+    </nav>
+  );
+
   return (
-    <div className="app-shell bg-gray-50">
-      <aside className="sidebar-fixed hidden md:flex flex-col bg-gray-900 text-white">
-        <div className="h-16 flex items-center px-4 border-b border-gray-800">
-          <img src="/logo.jpeg" alt="AgriHerd" className="h-12 w-10 rounded-full object-cover" />
-          <h2 className="text-xl font-bold text-secondary">AgriHerd Admin</h2>
+    <div className="app-shell bg-background">
+      {/* Desktop Fixed Dark Navy Sidebar */}
+      <aside className="sidebar-fixed hidden md:flex flex-col bg-navy text-white border-r border-slate-800 z-30 select-none">
+        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/logo.jpeg"
+              alt="AgriHerd"
+              className="h-9 w-9 rounded-xl object-cover shadow-sm ring-1 ring-white/10"
+            />
+            <div>
+              <span className="text-lg font-bold tracking-tight text-white">AgriHerd</span>
+              <span className="block text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+                Enterprise Admin
+              </span>
+            </div>
+          </div>
         </div>
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {adminLinks.map((link) => (
-            <NavLink key={link.name} to={link.path} end={link.path === '/admin/dashboard'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2 rounded-md transition-colors ${
-                  isActive ? 'bg-secondary text-gray-900 font-semibold' : 'text-gray-300 hover:bg-gray-800'
-                }`}>
-              <AdminIcon name={link.icon} />
-              {link.name}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="p-4 border-t border-gray-800">
-          <button type="button" onClick={handleSignOut} className="w-full text-left text-sm text-gray-300 hover:text-white transition">Sign Out</button>
+
+        {renderNav(false)}
+
+        <div className="p-3 border-t border-slate-800 shrink-0 space-y-1">
+          <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-800/40 border border-slate-700/50">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-xs">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-white truncate">
+                {user?.full_name || 'Administrator'}
+              </p>
+              <p className="text-[10px] text-emerald-400 font-medium">SUPER ADMIN</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/10 rounded-xl transition"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Sign Out</span>
+          </button>
         </div>
       </aside>
 
-      <div className="main-content-wrapper">
-        <header className="header-fixed bg-white shadow-sm flex items-center justify-between px-4 md:px-8">
-          <div className="flex items-center gap-3">
-            <BackButton fallbackPath="/admin/dashboard" compact />
-            <button type="button" onClick={() => setIsSidebarOpen(true)} aria-label="Open navigation menu"
-              className="md:hidden rounded-md border border-gray-300 p-2 text-gray-700 hover:bg-gray-100">
-              <AppIcon name="menu" />
-            </button>
-            <h1 className="text-lg font-semibold text-gray-800">Platform Administration</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <NotificationBell to="/app/notifications" />
-            <span className="text-xs text-gray-500">Administrator session</span>
-          </div>
-        </header>
-
-        <main className="content-scrollable">
-          <div className="max-w-6xl mx-auto"><Outlet /></div>
-        </main>
-
-        <Footer />
-      </div>
-
+      {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div className="fixed inset-0 z-40 flex md:hidden">
-          <button type="button" aria-label="Close" className="fixed inset-0 bg-black/50" onClick={() => setIsSidebarOpen(false)} />
-          <aside className="relative z-50 flex h-full w-64 flex-col bg-gray-900 text-white">
-            <div className="flex h-16 items-center gap-2 border-b border-gray-800 px-4">
-              <img src="/logo.jpeg" alt="AgriHerd" className="h-12 w-10 rounded-full object-cover" />
-              <h2 className="text-xl font-bold text-secondary">AgriHerd Admin</h2>
+        <div className="fixed inset-0 z-40 flex md:hidden animate-fadeIn">
+          <button
+            type="button"
+            aria-label="Close"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+          <aside className="relative z-50 flex h-full w-72 max-w-[80vw] flex-col bg-navy text-white shadow-2xl">
+            <div className="h-16 flex items-center justify-between px-5 border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <img
+                  src="/logo.jpeg"
+                  alt="AgriHerd"
+                  className="h-9 w-9 rounded-xl object-cover shadow-sm ring-1 ring-white/10"
+                />
+                <span className="text-lg font-bold tracking-tight text-white">AgriHerd Admin</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <nav className="flex-1 space-y-2 overflow-y-auto p-4">
-              {adminLinks.map((link) => (
-                <NavLink key={link.name} to={link.path} end={link.path === '/admin/dashboard'} onClick={() => setIsSidebarOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-md px-4 py-2 transition-colors ${
-                      isActive ? 'bg-secondary font-semibold text-gray-900' : 'text-gray-300 hover:bg-gray-800'
-                    }`}>
-                  <AdminIcon name={link.icon} />
-                  {link.name}
-                </NavLink>
-              ))}
-            </nav>
-            <div className="border-t border-gray-800 p-4">
-              <button type="button" onClick={handleSignOut} className="w-full text-left text-sm text-gray-300 hover:text-white">Sign Out</button>
+
+            {renderNav(true)}
+
+            <div className="p-3 border-t border-slate-800 shrink-0">
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/10 rounded-xl transition"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sign Out</span>
+              </button>
             </div>
           </aside>
         </div>
       )}
+
+      {/* Main Content Area */}
+      <div className="main-content-wrapper">
+        <header className="header-fixed flex items-center justify-between px-4 sm:px-6 bg-white border-b border-gray-100 z-20">
+          <div className="flex items-center gap-3">
+            <BackButton fallbackPath="/admin/dashboard" compact />
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(true)}
+              aria-label="Open navigation menu"
+              className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-base sm:text-lg font-bold text-maintext">
+                {currentTitle}
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* System Status Pill */}
+            <div className="hidden lg:flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
+              </span>
+              <span>Systems Online</span>
+            </div>
+
+            <NotificationBell to="/admin/audit-logs" />
+
+            <div className="h-4 w-px bg-gray-200 hidden sm:block" />
+
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-white font-bold text-xs">
+                {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'A'}
+              </div>
+              <div className="hidden sm:block text-left">
+                <span className="block text-xs font-bold text-maintext leading-tight">
+                  {user?.full_name || 'Admin'}
+                </span>
+                <span className="block text-[10px] font-semibold text-primary uppercase leading-tight">
+                  Platform Admin
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSignOut}
+              title="Sign Out"
+              aria-label="Sign Out"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-rose-50 hover:text-error transition"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </header>
+
+        <main className="content-scrollable">
+          <div className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+            <Outlet />
+          </div>
+          <Footer isAdmin={true} />
+        </main>
+      </div>
     </div>
   );
 };
