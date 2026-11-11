@@ -36,7 +36,7 @@ const BuyerLayout = () => {
     };
   }, []);
 
-  // FIXED: All paths now correctly point to the /buyer/ prefix
+  // All paths correctly point to the /buyer/ prefix
   const navItems = [
     { name: 'Dashboard', path: '/buyer/dashboard', icon: 'dashboard' },
     { name: 'Marketplace', path: '/buyer/marketplace', icon: 'marketplace' },
@@ -133,7 +133,10 @@ const BuyerLayout = () => {
           </div>
         </header>
         <main className="content-scrollable">
-          <div className="max-w-7xl mx-auto"><Outlet /></div>
+          <div className="max-w-7xl mx-auto">
+            {/* CRITICAL: This renders the actual page content */}
+            <Outlet />
+          </div>
         </main>
         <Footer />
       </div>

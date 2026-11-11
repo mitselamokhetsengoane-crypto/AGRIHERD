@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from io import StringIO
 import csv
 
@@ -189,6 +189,7 @@ def export_csv(
     end: Optional[date] = Query(default=None),
     current_user: dict = Depends(get_current_user),
 ):
+    # FIXED: Added the same start/end date filtering logic as the reports endpoint
     q = supabase.table("transactions").select("*").eq("user_id", current_user["sub"])
     if start:
         q = q.gte("date", start.isoformat())

@@ -137,7 +137,7 @@ const FarmManagement = () => {
             disabled={page >= pageCount || loading} className="rounded border border-gray-300 px-3 py-1 disabled:opacity-50">
             Next
           </button>
-          </div>
+        </div>
       </div>
     </section>
   );

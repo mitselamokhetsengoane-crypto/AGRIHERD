@@ -46,7 +46,8 @@ const HarvestRecords = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <Link to={`/app/crops/${id}`} className="text-primary hover:underline text-sm">Back to Crop</Link>
+      {/* FIXED: Route points to /crops/:id instead of /app/crops/:id */}
+      <Link to={`/crops/${id}`} className="text-primary hover:underline text-sm">Back to Crop</Link>
       <h1 className="text-2xl font-bold text-maintext">Harvest Records</h1>
 
       {/* Add Form */}

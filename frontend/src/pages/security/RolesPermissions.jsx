@@ -6,7 +6,6 @@ const RolesPermissions = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -22,21 +21,9 @@ const RolesPermissions = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const handlePermissionChange = async (row, permission) => {
-    setSaving(row.id);
-    setError('');
-    try {
-      await securityService.updateRolePermission(row.id, permission);
-      await load();
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Could not save this permission.');
-    } finally {
-      setSaving(null);
-    }
-  };
-
   if (loading) return <LoadingIndicator label="Loading role permissions..." />;
 
+  // Group permissions by role
   const byRole = data.reduce((acc, row) => {
     acc[row.role] = acc[row.role] || [];
     acc[row.role].push(row);
@@ -83,16 +70,6 @@ const RolesPermissions = () => {
                       </span>
                       {' — '}{perm.module}: {perm.action}
                     </span>
-                    <select
-                      aria-label={`${roleLabels[role] || role} ${perm.module} ${perm.action} permission`}
-                      value={perm.permission}
-                      disabled={saving === perm.id}
-                      onChange={(event) => handlePermissionChange(perm, event.target.value)}
-                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs disabled:opacity-60"
-                    >
-                      <option value="allowed">Allowed</option>
-                      <option value="restricted">Restricted</option>
-                    </select>
                   </li>
                 ))}
               </ul>

@@ -50,9 +50,7 @@ const ProductDetails = () => {
       if (typeof detail === 'string') {
         setAddError(detail);
       } else if (err.response?.status === 503) {
-        setAddError(
-          'The cart service is unavailable. Verify the backend Supabase service-role key and cart RPC permissions.'
-        );
+        setAddError('The cart service is unavailable. Verify the backend Supabase service-role key and cart RPC permissions.');
       } else {
         setAddError(getErrorMessage(err, 'Could not add to cart.'));
       }

@@ -23,6 +23,15 @@ _configured_origins = {
 }
 ORIGINS = sorted(_default_origins | _configured_origins)
 
+# FIXED: Apply middleware directly to the FastAPI instance
+api.add_middleware(
+    CORSMiddleware,
+    allow_origins=ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    max_age=600,
+)
 api.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
@@ -60,8 +69,8 @@ mount("marketplace", "/api/v1/marketplace", "Marketplace")
 mount("security", "/api/v1/security", "Security")
 mount("notifications", "/api/v1/notifications", "Notifications")
 mount("dashboard", "/api/v1/dashboard", "Dashboard")
-mount("admin", "/api/v1/admin", "Admin") # <--- THIS WAS MISSING
-mount("farms", "/api/v1/farms", "Farms") # <--- ADDED FOR MULTIPLE FARMS
+mount("admin", "/api/v1/admin", "Admin") 
+mount("farms", "/api/v1/farms", "Farms") 
 
 mount("disease_scanner", "/api/v1/disease-scanner", "Disease Scanner", optional=True)
 mount("ai_wake", "/api/v1/ai", "AI Wake", optional=True)
@@ -77,12 +86,5 @@ def root():
 def health():
     return {"status": "ok"}
 
-
-app = CORSMiddleware(
-    app=api,
-    allow_origins=ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    max_age=600,
-)
+# FIXED: Return the api instance directly instead of wrapping it again
+app = api

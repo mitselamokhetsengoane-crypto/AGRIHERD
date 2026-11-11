@@ -28,7 +28,6 @@ const PlantingRecords = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      // Convert empty strings to null or numbers where required
       const payload = {
         ...form,
         quantity_used: form.quantity_used ? parseFloat(form.quantity_used) : null
@@ -47,7 +46,8 @@ const PlantingRecords = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <Link to={`/app/crops/${id}`} className="text-primary hover:underline text-sm">Back to Crop</Link>
+      {/* FIXED: Route points to /crops/:id instead of /app/crops/:id */}
+      <Link to={`/crops/${id}`} className="text-primary hover:underline text-sm">Back to Crop</Link>
       <h1 className="text-2xl font-bold text-maintext">Planting Records</h1>
 
       {/* Add Form */}

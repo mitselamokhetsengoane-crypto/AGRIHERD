@@ -84,41 +84,31 @@ def update_item(item_id: str, item: dict, current_user: dict = Depends(get_curre
 
 @router.post("/{item_id}/stock")
 def update_stock(item_id: str, data: dict, current_user: dict = Depends(get_current_user)):
-    item_response = (
-        supabase.table("inventory")
-        .select("*")
-        .eq("id", item_id)
-        .eq("user_id", current_user["sub"])
-        .execute()
-    )
-    if not item_response.data:
-        raise HTTPException(status_code=404, detail="Inventory item not found")
-
-    item = item_response.data[0]
     try:
         change_amount = float(data["change_amount"])
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail="A numeric change_amount is required") from exc
 
-    new_quantity = float(item.get("quantity") or 0) + change_amount
-    if new_quantity < 0:
-        raise HTTPException(status_code=422, detail="Stock quantity cannot be negative")
-
-    minimum_stock = float(item.get("minimum_stock_level") or 0)
+    # The RPC handles the atomic transaction, negative stock check, and history logging.
     updated = supabase.rpc(
         "update_inventory_stock",
         {
             "p_item_id": item_id,
             "p_user_id": current_user["sub"],
             "p_change_amount": change_amount,
-            "p_reason": data.get("reason"),
+            "p_reason": data.get("reason", "Manual update"),
         },
     ).execute()
+    
+    if not updated.data:
+        # This happens if the RPC fails (e.g., item not found or negative stock)
+        raise HTTPException(status_code=400, detail="Failed to update stock. Check that the item exists and the quantity does not drop below zero.")
+        
     updated_item = updated.data[0]
     AuditService.log(
         current_user["sub"],
         "UPDATE_INVENTORY_STOCK",
-        f"Updated stock for {item['name']} to {updated_item['quantity']:g}",
+        f"Updated stock for {updated_item.get('name', item_id)} to {updated_item['quantity']:g}",
     )
     return updated_item
 

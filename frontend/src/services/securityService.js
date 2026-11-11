@@ -11,35 +11,39 @@ const securityService = {
   getSystemHealth: async () => (await api.get('/security/system-health')).data,
   updateSystemSetting: async (key, value) =>
     (await api.patch(`/security/system-settings/${key}`, { setting_value: value })).data,
+  
+  // FIXED: Handles the backend response correctly
   getFarms: async (params = {}) => {
     const response = await api.get('/security/farms', { params });
+    const rawData = response.data;
+    
+    // Check if backend returned the new paginated format or the old flat array
+    const items = Array.isArray(rawData) ? rawData : (rawData.items || []);
+    
     return {
-      ...response.data,
-      items: response.data.items.map((farm) => ({
+      items: items.map((farm) => ({
         id: farm.id,
         farmName: farm.farm_name,
         location: farm.location,
         ownerName: farm.owner_name,
         status: farm.status,
         registeredAt: farm.created_at,
-        livestockCount: farm.livestock_count,
-        cropCount: farm.crop_count,
+        livestockCount: farm.livestock_count || 0,
+        cropCount: farm.crop_count || 0,
       })),
+      total: rawData.total || items.length,
     };
   },
 
-  // User management now lives on the admin router (real endpoints)
   getUsers: async (params = {}) => (await api.get('/admin/users', { params })).data,
   updateUserStatus: async (userId, account_status) =>
     (await api.patch(`/admin/users/${userId}/status`, { account_status })).data,
   approveFarmer: async (userId) => (await api.patch(`/admin/users/${userId}/approve`)).data,
 
-  // Kept for compatibility — no backend endpoint for role change yet
   updateUserRole: async (userId, role) => {
     throw new Error('Role changes are not supported. Contact a database administrator.');
   },
 
-  // Admin monitoring
   getAdminAISummary: async () => (await api.get('/admin/ai/summary')).data,
   getAdminAIPredictions: async () => (await api.get('/admin/ai/predictions')).data,
   checkAdminAIService: async () => (await api.get('/ai/wake', { timeout: 70000 })).data,

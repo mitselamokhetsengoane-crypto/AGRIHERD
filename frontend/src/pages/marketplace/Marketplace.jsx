@@ -104,7 +104,7 @@ const Marketplace = () => {
           ))}
         </div>
       )}
-        </div>
+    </div>
   );
 };
 
