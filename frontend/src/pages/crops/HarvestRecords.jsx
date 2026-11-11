@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import cropService from '../../services/cropService';
+import blockchainService from '../../services/blockchainService';
 import { getErrorMessage } from '../../services/api';
 import { formatDate } from '../../utils/formatters';
 
@@ -10,6 +11,7 @@ const HarvestRecords = () => {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ harvest_date: '', quantity: '', unit: '', quality: '' });
   const [saving, setSaving] = useState(false);
+  const [registering, setRegistering] = useState(null);
 
   const fetchRecords = async () => {
     try {
@@ -42,15 +44,25 @@ const HarvestRecords = () => {
     }
   };
 
+  const handleRegister = async (recordId) => {
+    setRegistering(recordId);
+    try {
+      await blockchainService.registerHarvest(recordId);
+      alert("Harvest successfully registered on the blockchain!");
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to register on blockchain.");
+    } finally {
+      setRegistering(null);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-subtext">Loading records...</div>;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* FIXED: Route points to /crops/:id instead of /app/crops/:id */}
       <Link to={`/crops/${id}`} className="text-primary hover:underline text-sm">Back to Crop</Link>
       <h1 className="text-2xl font-bold text-maintext">Harvest Records</h1>
 
-      {/* Add Form */}
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="md:col-span-4"><h3 className="font-semibold text-maintext">Log New Harvest</h3></div>
         <div>
@@ -82,7 +94,6 @@ const HarvestRecords = () => {
         </div>
       </form>
 
-      {/* List */}
       {records.length === 0 ? (
         <div className="bg-white p-8 text-center rounded-xl shadow-sm border border-gray-100">
           <p className="text-subtext">No harvest records found.</p>
@@ -95,6 +106,7 @@ const HarvestRecords = () => {
                 <th className="p-4 font-medium text-subtext">Date</th>
                 <th className="p-4 font-medium text-subtext">Quantity</th>
                 <th className="p-4 font-medium text-subtext">Quality</th>
+                <th className="p-4 font-medium text-subtext text-right">Blockchain</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -103,6 +115,15 @@ const HarvestRecords = () => {
                   <td className="p-4 text-maintext">{formatDate(record.harvest_date)}</td>
                   <td className="p-4 font-medium text-primary">{record.quantity} {record.unit}</td>
                   <td className="p-4 text-subtext">{record.quality || 'N/A'}</td>
+                  <td className="p-4 text-right">
+                    <button
+                      onClick={() => handleRegister(record.id)}
+                      disabled={registering === record.id}
+                      className="text-xs bg-gray-100 text-gray-800 px-3 py-1 rounded hover:bg-gray-200 disabled:opacity-50 font-medium"
+                    >
+                      {registering === record.id ? 'Registering...' : 'Register on Chain'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

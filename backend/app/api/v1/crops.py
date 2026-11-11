@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 from app.core.permissions import get_current_user
 from app.database.connection import supabase
 from app.services.audit_service import AuditService
+from app.services.blockchain_trigger import record_harvest_on_chain
 
 router = APIRouter()
 
@@ -106,9 +107,19 @@ def get_harvests(crop_id: str, current_user: dict = Depends(get_current_user)):
     return response.data or []
 
 @router.post("/{crop_id}/harvests")
-def add_harvest(crop_id: str, data: HarvestCreate, current_user: dict = Depends(get_current_user)):
+async def add_harvest(
+    crop_id: str, 
+    data: HarvestCreate, 
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user)
+):
     _verify_crop_ownership(crop_id, current_user["sub"])
     row = data.dict(exclude_none=True)
     row["crop_id"] = crop_id
     response = supabase.table("harvest_records").insert(row).execute()
-    return response.data[0]
+    created = response.data[0]
+    
+    # Automatically push the new harvest record to the blockchain in the background
+    background_tasks.add_task(record_harvest_on_chain, created["id"], current_user["sub"])
+    
+    return created
