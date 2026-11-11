@@ -11,8 +11,10 @@ logger = logging.getLogger("agriherd")
 
 api = FastAPI(title="AgriHerd API", version="1.0.0")
 
+# FIX: Allow the exact public and admin frontend URLs
 _default_origins = {
     "https://agriherd-1.onrender.com",
+    "https://agriherd-admin.onrender.com",
     "http://localhost:5173",
     "http://localhost:3000",
 }
@@ -23,7 +25,6 @@ _configured_origins = {
 }
 ORIGINS = sorted(_default_origins | _configured_origins)
 
-# FIXED: Apply middleware directly to the FastAPI instance
 api.add_middleware(
     CORSMiddleware,
     allow_origins=ORIGINS,
@@ -69,8 +70,8 @@ mount("marketplace", "/api/v1/marketplace", "Marketplace")
 mount("security", "/api/v1/security", "Security")
 mount("notifications", "/api/v1/notifications", "Notifications")
 mount("dashboard", "/api/v1/dashboard", "Dashboard")
-mount("admin", "/api/v1/admin", "Admin") 
-mount("farms", "/api/v1/farms", "Farms") 
+mount("admin", "/api/v1/admin", "Admin")
+mount("farms", "/api/v1/farms", "Farms")
 
 mount("disease_scanner", "/api/v1/disease-scanner", "Disease Scanner", optional=True)
 mount("ai_wake", "/api/v1/ai", "AI Wake", optional=True)
@@ -86,5 +87,4 @@ def root():
 def health():
     return {"status": "ok"}
 
-# FIXED: Return the api instance directly instead of wrapping it again
 app = api
