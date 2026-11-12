@@ -11,3 +11,4 @@ web3
 eth-account
 email-validator
 httpx
+openpyxl==3.1.2

@@ -36,6 +36,7 @@ const HarvestRecords = () => {
       };
       await cropService.addHarvestRecord(id, payload);
       setForm({ harvest_date: '', quantity: '', unit: '', quality: '' });
+      // The backend will automatically push to the blockchain, so we just refresh
       await fetchRecords();
     } catch (error) {
       alert(getErrorMessage(error, "Failed to save harvest record."));

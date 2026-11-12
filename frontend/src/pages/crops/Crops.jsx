@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import cropService from '../../services/cropService';
 import { formatDate } from '../../utils/formatters';
+import api from '../../services/api';
 import PageHeader from '../../components/common/PageHeader';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingIndicator from '../../components/common/LoadingIndicator';
-import { Plus, Sprout, ArrowRight, Calendar, MapPin } from 'lucide-react';
+import { Plus, Sprout, ArrowRight, Calendar, MapPin, Download } from 'lucide-react';
 
 const Crops = () => {
   const [crops, setCrops] = useState([]);
@@ -26,6 +27,21 @@ const Crops = () => {
     fetchCrops();
   }, []);
 
+  const handleDownloadReport = async () => {
+    try {
+      const response = await api.get('/crops/reports/export.xlsx', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'agriherd-crops.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      alert('Failed to download crop report.');
+    }
+  };
+
   if (loading) return <LoadingIndicator label="Loading crops & fields..." />;
 
   return (
@@ -34,6 +50,13 @@ const Crops = () => {
         title="Crops & Fields"
         subtitle="Monitor field plots, planting schedules, growth stages, and harvest yields."
       >
+        <button 
+          onClick={handleDownloadReport}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 transition mr-3"
+        >
+          <Download className="h-4 w-4" />
+          <span>Download Report</span>
+        </button>
         <Link
           to="/app/crops/add"
           className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-primary-hover transition"

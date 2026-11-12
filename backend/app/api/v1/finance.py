@@ -1,8 +1,10 @@
 from datetime import date
-from io import StringIO
+from io import BytesIO
 import csv
 
 from fastapi import APIRouter, Depends, Query, HTTPException, Response
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -183,13 +185,12 @@ def get_finance_reports(
     ]
 
 
-@router.get("/export.csv")
-def export_csv(
+@router.get("/export.xlsx")
+def export_excel(
     start: Optional[date] = Query(default=None),
     end: Optional[date] = Query(default=None),
     current_user: dict = Depends(get_current_user),
 ):
-    # FIXED: Added the same start/end date filtering logic as the reports endpoint
     q = supabase.table("transactions").select("*").eq("user_id", current_user["sub"])
     if start:
         q = q.gte("date", start.isoformat())
@@ -197,20 +198,26 @@ def export_csv(
         q = q.lte("date", end.isoformat())
     resp = q.order("date", desc=True).execute()
 
-    buf = StringIO()
-    writer = csv.writer(buf)
-    writer.writerow(["Date", "Type", "Category", "Description", "Amount", "Source"])
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Transactions"
+    ws.append(["Date", "Type", "Category", "Description", "Amount", "Source"])
+    
     for r in resp.data or []:
-        writer.writerow([
+        ws.append([
             r.get("date") or "",
             r.get("type") or "",
             r.get("category") or "",
             (r.get("description") or "").replace("\n", " "),
-            r.get("amount") or 0,
+            float(r.get("amount") or 0),
             r.get("source") or "MANUAL",
         ])
-    return Response(
-        content=buf.getvalue(),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=agriherd-finance.csv"},
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=agriherd-finance.xlsx"},
     )

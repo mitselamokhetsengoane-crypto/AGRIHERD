@@ -3,12 +3,12 @@ from app.core.permissions import get_current_user
 from app.database.connection import supabase
 from app.services.blockchain_service import blockchain_service
 from app.services.blockchain_trigger import record_harvest_on_chain
+import httpx
 
 router = APIRouter()
 
 @router.get("/status")
 async def get_status():
-    import httpx
     try:
         async with httpx.AsyncClient() as client:
             res = await client.get(f"{blockchain_service.service_url}/health", timeout=5.0)
@@ -20,22 +20,24 @@ async def get_status():
 
 @router.get("/verify")
 async def verify_chain(current_user: dict = Depends(get_current_user)):
-    """Verify the entire blockchain integrity."""
     return await blockchain_service.verify_chain()
 
 @router.get("/blocks")
 async def get_all_blocks(current_user: dict = Depends(get_current_user)):
-    """Get all blocks (used by the Admin dashboard)."""
+    """Get all blocks directly from the Node.js engine."""
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admins only")
-    import httpx
     try:
         async with httpx.AsyncClient() as client:
-            res = await client.get(f"{blockchain_service.service_url}/blocks", headers=blockchain_service.headers, timeout=20.0)
+            res = await client.get(
+                f"{blockchain_service.service_url}/blocks", 
+                headers=blockchain_service.headers, 
+                timeout=20.0
+            )
             res.raise_for_status()
             return res.json()
     except Exception as e:
-        raise HTTPException(status_code=503, detail="Could not load blocks from the chain.")
+        raise HTTPException(status_code=503, detail=f"Could not load blocks from the chain: {str(e)}")
 
 @router.get("/transactions")
 def get_transactions(current_user: dict = Depends(get_current_user)):
@@ -47,7 +49,6 @@ def get_transactions(current_user: dict = Depends(get_current_user)):
 
 @router.post("/verify/{record_id}")
 async def verify_record(record_id: str, current_user: dict = Depends(get_current_user)):
-    """Verify a specific record against the blockchain network."""
     db_record = supabase.table("blockchain_records").select("*").eq("id", record_id).limit(1).execute()
     if not db_record.data:
         raise HTTPException(status_code=404, detail="Record not found in database")
@@ -60,11 +61,9 @@ async def verify_record(record_id: str, current_user: dict = Depends(get_current
 
 @router.post("/register-harvest/{harvest_id}")
 async def register_harvest(harvest_id: str, current_user: dict = Depends(get_current_user)):
-    """Allow a farmer to manually push a harvest to the blockchain."""
     if current_user.get("role") != "farmer":
         raise HTTPException(status_code=403, detail="Only farmers can register harvests")
     
-    # Verify the harvest belongs to this farmer
     harvest = supabase.table("harvest_records").select("*, crops(user_id)").eq("id", harvest_id).limit(1).execute()
     if not harvest.data:
         raise HTTPException(status_code=404, detail="Harvest not found")
