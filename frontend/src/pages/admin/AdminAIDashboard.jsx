@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import securityService from '../../services/securityService';
+import api from '../../services/api'; // Needed for the new call
 import { getErrorMessage } from '../../services/api';
 import LoadingIndicator from '../../components/common/LoadingIndicator';
 
@@ -12,6 +13,11 @@ const AdminAIDashboard = () => {
   const [predictions, setPredictions] = useState([]);
   const [predictionError, setPredictionError] = useState('');
   const [predictionsLoading, setPredictionsLoading] = useState(true);
+
+  // NEW: State for real AI model metrics
+  const [modelMetrics, setModelMetrics] = useState(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [metricsError, setMetricsError] = useState('');
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
@@ -37,10 +43,25 @@ const AdminAIDashboard = () => {
     }
   }, []);
 
+  // NEW: Load the real metrics from the database
+  const loadModelMetrics = useCallback(async () => {
+    setMetricsLoading(true);
+    setMetricsError('');
+    try {
+      const res = await api.get('/ai-sales/models');
+      setModelMetrics(res.data);
+    } catch (err) {
+      setMetricsError(err.response?.data?.detail || 'Could not load AI model metrics from the database.');
+    } finally {
+      setMetricsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadSummary();
     loadPredictions();
-  }, [loadPredictions, loadSummary]);
+    loadModelMetrics(); // NEW
+  }, [loadPredictions, loadSummary, loadModelMetrics]);
 
   const checkService = useCallback(async () => {
     setChecking(true);
@@ -66,59 +87,70 @@ const AdminAIDashboard = () => {
   return (
     <div className="space-y-8">
       {/* ==========================================
-          SECTION 1: SALES AI MODEL METRICS (NEW)
+          SECTION 1: SALES AI MODEL METRICS (REAL DATA)
           ========================================== */}
       <section className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Sales AI Monitoring</h1>
-            <p className="mt-1 text-gray-500">Random Forest model trained to predict agricultural sales demand.</p>
+            <p className="mt-1 text-gray-500">Live metrics loaded from the database.</p>
           </div>
           <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-800">
             ACTIVE MODEL
           </span>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-3">
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-gray-500">Model Algorithm</p>
-            <p className="mt-2 text-xl font-bold text-gray-900">Random Forest Regressor</p>
-            <p className="text-xs text-gray-500 mt-1">Outperformed Linear Regression (R²: 0.35)</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-gray-500">R-Squared (R²) Accuracy</p>
-            <p className="mt-2 text-3xl font-bold text-primary">0.96</p>
-            <p className="text-xs text-gray-500 mt-1">Explains 96% of sales variance</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-gray-500">Mean Absolute Error (MAE)</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900">2.82</p>
-            <p className="text-xs text-gray-500 mt-1">Average prediction error in units</p>
-          </div>
-        </div>
+        {/* Loading & Error States for Metrics */}
+        {metricsLoading && <div className="p-4 text-sm text-gray-500">Loading model metrics...</div>}
+        {metricsError && <div role="alert" className="p-4 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-800">{metricsError}</div>}
 
-        <div className="grid gap-5 md:grid-cols-3">
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-gray-500">Training Dataset Size</p>
-            <p className="mt-2 text-xl font-bold text-gray-900">1,000 records</p>
-            <p className="text-xs text-gray-500 mt-1">Synthetic data with price & seasonality</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-gray-500">RMSE</p>
-            <p className="mt-2 text-xl font-bold text-gray-900">3.43</p>
-            <p className="text-xs text-gray-500 mt-1">Root Mean Squared Error</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-gray-500">Last Trained</p>
-            <p className="mt-2 text-xl font-bold text-gray-900">November 2026</p>
-            <p className="text-xs text-gray-500 mt-1">Colab notebook: agriherd_sales_model.pkl</p>
-          </div>
-        </div>
+        {/* Only show metrics if data is loaded */}
+        {!metricsLoading && modelMetrics && (
+          <>
+            <div className="grid gap-5 md:grid-cols-3">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <p className="text-sm text-gray-500">Model Algorithm</p>
+                <p className="mt-2 text-xl font-bold text-gray-900">{modelMetrics.model_name}</p>
+                <p className="text-xs text-gray-500 mt-1">Version: {modelMetrics.version}</p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <p className="text-sm text-gray-500">R-Squared (R²) Accuracy</p>
+                <p className="mt-2 text-3xl font-bold text-primary">{modelMetrics.r2_score}</p>
+                <p className="text-xs text-gray-500 mt-1">Explains {Number(modelMetrics.r2_score) * 100}% of sales variance</p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <p className="text-sm text-gray-500">Mean Absolute Error (MAE)</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900">{modelMetrics.mae}</p>
+                <p className="text-xs text-gray-500 mt-1">Average prediction error in units</p>
+              </div>
+            </div>
 
-        {/* Algorithm Comparison Table */}
+            <div className="grid gap-5 md:grid-cols-3">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <p className="text-sm text-gray-500">Training Dataset Size</p>
+                <p className="mt-2 text-xl font-bold text-gray-900">{modelMetrics.dataset_size.toLocaleString()} records</p>
+                <p className="text-xs text-gray-500 mt-1">Synthetic data with price & seasonality</p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <p className="text-sm text-gray-500">RMSE</p>
+                <p className="mt-2 text-xl font-bold text-gray-900">{modelMetrics.rmse}</p>
+                <p className="text-xs text-gray-500 mt-1">Root Mean Squared Error</p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <p className="text-sm text-gray-500">Last Trained</p>
+                <p className="mt-2 text-xl font-bold text-gray-900">
+                  {new Date(modelMetrics.training_date).toLocaleDateString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Colab notebook: agriherd_sales_model.pkl</p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Algorithm Comparison Table - This can remain static as it shows historical training data */}
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-100 p-6">
-            <h2 className="font-semibold text-gray-800">Algorithm Comparison (From Training)</h2>
+            <h2 className="font-semibold text-gray-800">Algorithm Comparison (Historical Training Data)</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">

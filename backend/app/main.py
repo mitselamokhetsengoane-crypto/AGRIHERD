@@ -80,6 +80,8 @@ mount("disease_scanner", "/api/v1/disease-scanner", "Disease Scanner", optional=
 mount("ai_wake", "/api/v1/ai", "AI Wake", optional=True)
 mount("blockchain", "/api/v1/blockchain", "Blockchain", optional=True)
 
+mount("ai_sales", "/api/v1/ai-sales", "AI Sales")
+
 
 @api.get("/")
 def root():

@@ -36,3 +36,29 @@ async def get_sales_prediction(
     except Exception as e:
         logger.error(f"AI Sales Prediction failed (Connection error): {e}")
         raise HTTPException(status_code=503, detail="AI prediction service is currently unavailable.")
+
+
+
+@router.get("/models")
+async def get_active_model_metrics(current_user: dict = Depends(get_current_user)):
+    """Fetches the active AI model metrics from the database."""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admins only.")
+    
+    try:
+        response = (
+            supabase.table("ai_models")
+            .select("*")
+            .eq("is_active", True)
+            .order("training_date", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=404, detail="No active AI model found in database.")
+        return response.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch AI model metrics: {e}")
+        raise HTTPException(status_code=503, detail="Could not load AI metrics.")
