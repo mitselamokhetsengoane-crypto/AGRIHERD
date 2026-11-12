@@ -595,7 +595,7 @@ CREATE OR REPLACE FUNCTION public.checkout_marketplace_cart(
 ) RETURNS JSONB LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
 DECLARE
     v_cart_id UUID;
-    v_checkout_group UUID := public.uuid_generate_v4();
+    v_checkout_group UUID := pg_catalog.gen_random_uuid();
     v_request_response JSONB;
     v_inserted_rows INTEGER;
     seller_row RECORD;

@@ -252,6 +252,16 @@ def _raise_marketplace_rpc_error(exc: Exception, operation: str) -> None:
                 "then reload the Supabase API schema cache."
             ),
         ) from exc
+    if "42883" in lowered and "uuid_generate_v4" in lowered:
+        logger.error("%s failed because the checkout UUID generator is unavailable: %s", operation, message)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The checkout database function needs an update. Apply "
+                "database/migrations/20261112_checkout_uuid_generator.sql "
+                "in the configured Supabase project."
+            ),
+        ) from exc
     if "cart item not found" in lowered or "product not found" in lowered:
         raise HTTPException(status_code=404, detail="Cart item or product not found.") from exc
     if "not enough stock" in lowered or "no longer has enough stock" in lowered:

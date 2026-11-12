@@ -387,6 +387,25 @@ class TestMarketplaceBuyerRoutes(unittest.TestCase):
 
         self.assertEqual(response.status_code, 409)
 
+    def test_checkout_reports_missing_uuid_generator_migration(self):
+        with patch("app.api.v1.marketplace.supabase") as supabase_mock:
+            supabase_mock.rpc.return_value.execute.side_effect = Exception(
+                "function public.uuid_generate_v4() does not exist (42883)"
+            )
+            response = client.post(
+                "/api/v1/marketplace/checkout",
+                json={
+                    "customer_name": "Buyer",
+                    "phone": "123",
+                    "delivery_location": "Town",
+                    "payment_method": "CASH",
+                    "idempotency_key": "11111111-1111-4111-8111-111111111111",
+                },
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("20261112_checkout_uuid_generator.sql", response.json()["detail"])
+
     def test_buyer_cannot_read_another_buyers_order(self):
         order_table = mock_table([{
             "id": "order-id",

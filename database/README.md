@@ -14,6 +14,11 @@ The backend expects the Supabase project configured by `SUPABASE_URL` and
 missing objects, inspect and update that project carefully in Supabase before
 restarting the backend; do not rerun this destructive bootstrap script.
 
+For an existing project affected by the marketplace checkout UUID-generator
+error, run [`migrations/20261112_checkout_uuid_generator.sql`](./migrations/20261112_checkout_uuid_generator.sql)
+in the Supabase SQL Editor. This migration only replaces the checkout function
+and does not recreate tables or modify existing data.
+
 If Render logs show `permission denied for schema public` for a service-role
 request, do not rerun `schema.sql` on the live database. After confirming the
 backend URL points at the intended project, run this non-destructive privilege
