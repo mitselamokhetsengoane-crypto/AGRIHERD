@@ -656,7 +656,7 @@ def get_order(order_id: str, current_user: dict = Depends(get_current_user)):
 
 
 @router.patch("/orders/{order_id}/status")
-def update_order_status(order_id: str, body: OrderStatusUpdate, current_user: dict = Depends(get_current_user)):
+async def update_order_status(order_id: str, body: OrderStatusUpdate, current_user: dict = Depends(get_current_user)):
     _require_seller_or_admin(current_user)
     if body.status not in VALID_ORDER_STATUSES:
         raise HTTPException(status_code=400, detail="Invalid status.")
@@ -715,10 +715,8 @@ def update_order_status(order_id: str, body: OrderStatusUpdate, current_user: di
                 }).eq("order_id", order_id).execute()
 
         IncomeService.record_marketplace_income(order_id)
-        try:
-            record_order_on_chain(order_id)
-        except Exception as exc:
-            logger.error(f"Blockchain trigger raised: {exc}")
+        # AWAIT the blockchain trigger to ensure it's recorded immediately
+        await record_order_on_chain(order_id)
 
     return {"message": "Order status updated", "status": body.status}
 

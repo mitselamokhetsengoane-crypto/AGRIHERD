@@ -40,6 +40,7 @@ import {
   Clock,
   ShieldAlert,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 
 ChartJS.register(
@@ -54,6 +55,13 @@ ChartJS.register(
   Legend,
   Filler
 );
+
+const SALES_FORECAST_INPUT = {
+  month: 12,
+  category: 'Vegetables',
+  product: 'Tomatoes',
+  price: 20.0,
+};
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
@@ -70,6 +78,28 @@ const Dashboard = () => {
   const [inventoryList, setInventoryList] = useState([]);
   const [tasksList, setTasksList] = useState([]);
   const [diseaseScans, setDiseaseScans] = useState([]);
+  const [salesForecast, setSalesForecast] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+
+    api.post('/ai-sales/predict-sales', SALES_FORECAST_INPUT)
+      .then(({ data }) => {
+        const predictedQuantity = Number(data?.predicted_quantity);
+        if (data?.status !== 'success' || data?.predicted_quantity == null || !Number.isFinite(predictedQuantity)) {
+          console.error('AI sales forecast returned an invalid response.');
+          return;
+        }
+        if (active) setSalesForecast(predictedQuantity);
+      })
+      .catch((err) => {
+        if (active) console.error('AI sales forecast is unavailable.', err);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -429,6 +459,34 @@ const Dashboard = () => {
           />
         </div>
       </div>
+
+      {salesForecast !== null && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <section className="lg:col-span-3 flex flex-col gap-4 rounded-xl border border-gray-100 border-l-4 border-l-primary bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-bold text-maintext">AI Sales Forecast</h2>
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary-light px-2.5 py-1 text-[10px] font-bold tracking-wide text-primary">
+                  <Sparkles className="h-3 w-3" />
+                  AI INSIGHT
+                </span>
+              </div>
+              <p className="text-sm text-subtext">
+                {SALES_FORECAST_INPUT.product} · {SALES_FORECAST_INPUT.category}
+              </p>
+              <p className="mt-1 text-xs text-subtext">
+                Forecast price: {formatCurrency(SALES_FORECAST_INPUT.price)}
+              </p>
+            </div>
+            <div className="sm:text-right">
+              <p className="text-4xl font-bold text-primary">
+                {salesForecast.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+              </p>
+              <p className="text-xs text-subtext">predicted quantity</p>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* 5. Alerts & Operational Feeds */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
